@@ -1,0 +1,7 @@
+{
+  "description": "请勿提交真实 appid / token 到 git",
+  "setting": {
+    "compileHotReLoad": true,
+    "urlCheck": false
+  }
+}

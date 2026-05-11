@@ -1,0 +1,37 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/profile/index",
+    "pages/report/index",
+    "pages/plan/index",
+    "pages/clock/index",
+    "pages/stats/index",
+    "pages/settings/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "健康重启计划",
+    "backgroundColor": "#F7FAF9"
+  },
+  "tabBar": {
+    "color": "#9CA3AF",
+    "selectedColor": "#2BBE7A",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/home/index", "text": "首页" },
+      { "pagePath": "pages/plan/index", "text": "计划" },
+      { "pagePath": "pages/clock/index", "text": "打卡" },
+      { "pagePath": "pages/stats/index", "text": "数据" },
+      { "pagePath": "pages/settings/index", "text": "我的" }
+    ]
+  },
+  "permission": {
+    "scope.userInfo": { "desc": "用于显示昵称头像" },
+    "scope.bluetooth": { "desc": "连接体脂秤 / 血压计 / 手环" }
+  },
+  "requiredPrivateInfos": ["getLocation"],
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

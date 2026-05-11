@@ -1,0 +1,6 @@
+<view class="container">
+  <view class="card">
+    <view class="title-md">AI 个性化计划</view>
+    <view class="muted">基于您的健康档案，调用大模型生成专属饮食 / 运动 / 用药方案。</view>
+  </view>
+</view>

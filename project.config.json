@@ -1,0 +1,16 @@
+{
+  "miniprogramRoot": "miniprogram/",
+  "projectname": "HealthResetPlan-Wechat",
+  "appid": "wxAPPID_PLACEHOLDER",
+  "setting": {
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true,
+    "useCompilerPlugins": ["typescript"]
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.5.0",
+  "description": "健康重启计划微信小程序"
+}

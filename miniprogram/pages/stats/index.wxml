@@ -1,0 +1,6 @@
+<view class="container">
+  <view class="card">
+    <view class="title-md">数据趋势</view>
+    <view class="muted">体重、体脂、血压、血脂、血糖随时间变化的可视化报告。</view>
+  </view>
+</view>

@@ -1,0 +1,6 @@
+<view class="container">
+  <view class="card">
+    <view class="title-md">今日打卡</view>
+    <view class="muted">饮食 / 运动 / 用药 / 称重 全场景打卡留痕，备注端到端加密。</view>
+  </view>
+</view>

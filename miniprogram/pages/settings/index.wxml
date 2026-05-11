@@ -1,0 +1,11 @@
+<view class="container">
+  <view class="card">
+    <view class="title-md">端到端加密云同步</view>
+    <view class="muted">由于微信小程序限制，主密钥备份请在 Flutter 客户端 / Web 端完成。</view>
+    <view class="muted">本小程序仅在内存中持有 UMK，不持久化明文。</view>
+  </view>
+  <view class="card">
+    <view class="title-md">关于</view>
+    <view class="muted">健康重启计划 · 微信小程序 v0.1.0</view>
+  </view>
+</view>

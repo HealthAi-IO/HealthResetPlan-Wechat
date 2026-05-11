@@ -1,0 +1,6 @@
+<view class="container">
+  <view class="card">
+    <view class="title-md">检查报告 OCR</view>
+    <view class="muted">上传体检 / 血压 / 血脂报告图片，自动抽取关键指标。报告图片端到端加密。</view>
+  </view>
+</view>

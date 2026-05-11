@@ -1,0 +1,16 @@
+<view class="container">
+  <view class="hero">
+    <view class="title-lg">让健康从今天「重启」</view>
+    <view class="muted">三高 / 肥胖人群的 AI 智能健康管理小程序</view>
+  </view>
+
+  <view class="card" wx:for="{{modules}}" wx:key="key" bindtap="onModuleTap" data-key="{{item.key}}">
+    <view class="title-md">{{item.title}}</view>
+    <view class="muted">{{item.desc}}</view>
+  </view>
+
+  <view class="card sync" wx:if="{{!hasCloudSync}}" bindtap="onOpenSync">
+    <view class="title-md">🔐 开启端到端加密云同步</view>
+    <view class="muted">私钥保存在您的手机本地，云端只见密文</view>
+  </view>
+</view>

@@ -1,0 +1,6 @@
+<view class="container">
+  <view class="card">
+    <view class="title-md">健康档案</view>
+    <view class="muted">身高、体重、年龄、病史、用药信息将存储在本地，加密同步可选。</view>
+  </view>
+</view>
