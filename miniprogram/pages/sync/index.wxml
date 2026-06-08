@@ -1,0 +1,78 @@
+<view class="container">
+
+  <!-- 顶部状态 -->
+  <view class="status-card {{state.loggedIn && state.hasKey ? 'on' : ''}}">
+    <view class="status-icon">{{state.loggedIn && state.hasKey ? '🟢' : '⚪'}}</view>
+    <view class="status-body">
+      <view class="status-title">{{state.loggedIn && state.hasKey ? '云同步已开启' : '云同步未开启'}}</view>
+      <view class="status-sub muted">
+        <block wx:if="{{!state.loggedIn}}">请先登录账号</block>
+        <block wx:elif="{{!state.hasKey}}">请设置同步密码以派生主密钥</block>
+        <block wx:else>主密钥保存在本地，服务端无法读取明文</block>
+      </view>
+    </view>
+  </view>
+
+  <!-- 设置主密钥 -->
+  <view class="card" wx:if="{{state.loggedIn}}">
+    <view class="card-title">🔐 同步密码</view>
+    <view class="card-sub muted">用于派生 32 字节主密钥（PBKDF2，10000 轮）。请记牢，丢失后云端数据无法恢复。</view>
+    <input class="input"
+           password="true"
+           placeholder="输入同步密码（至少 8 位）"
+           value="{{password}}"
+           bindinput="onPwdInput" />
+    <view class="btn-row">
+      <button class="btn-solid" bindtap="onSetKey">
+        {{state.hasKey ? '更换密码' : '设置并启用'}}
+      </button>
+      <button class="btn-ghost" wx:if="{{state.hasKey}}" bindtap="onClearKey">清除密钥</button>
+    </view>
+  </view>
+
+  <!-- 同步操作 -->
+  <view class="card" wx:if="{{state.loggedIn && state.hasKey}}">
+    <view class="card-title">📤 同步操作</view>
+    <view class="kv-row">
+      <text>待推送</text>
+      <text class="strong">{{state.queueLen}} 条</text>
+    </view>
+    <view class="kv-row">
+      <text>上次推送</text>
+      <text class="muted">{{lastPushLabel}}</text>
+    </view>
+    <view class="kv-row">
+      <text>设备 ID</text>
+      <text class="muted ellipsis">{{state.deviceId}}</text>
+    </view>
+    <view class="btn-row">
+      <button class="btn-solid" bindtap="onPush" disabled="{{busy}}">
+        {{busy ? '…' : '⬆️ 立即推送'}}
+      </button>
+      <button class="btn-ghost" bindtap="onPull" disabled="{{busy}}">
+        {{busy ? '…' : '⬇️ 拉取云端'}}
+      </button>
+    </view>
+  </view>
+
+  <!-- 会员引导 -->
+  <view class="tip" wx:if="{{state.loggedIn && state.hasKey}}" bindtap="onGoMembership" style="cursor:pointer">
+    💎 推送 / 拉取 需开通会员（拥有 cloud_sync 权益）。点击进入会员中心
+  </view>
+
+  <!-- 说明 -->
+  <view class="tip muted">
+    💡 微信小程序版加密目前为 <text class="strong">演示性占位实现</text>（HMAC-SHA256 流密码 + 完整性校验），
+    生产环境请在小程序中安装 <text class="strong">crypto-js</text> 并替换为 AES-256-CBC。
+    Flutter 主端默认使用 AES-256-GCM，跨端互通需在 Flutter 端按 alg 字段路由解密。
+  </view>
+
+  <!-- 日志 -->
+  <view class="log-card" wx:if="{{logs.length}}">
+    <view class="card-title">操作日志</view>
+    <view class="log-line" wx:for="{{logs}}" wx:key="t">
+      <text class="log-t muted">{{item.t}}</text>
+      <text class="log-msg">{{item.msg}}</text>
+    </view>
+  </view>
+</view>

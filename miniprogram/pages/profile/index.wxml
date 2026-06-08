@@ -1,6 +1,156 @@
-<view class="container">
-  <view class="card">
-    <view class="title-md">健康档案</view>
-    <view class="muted">身高、体重、年龄、病史、用药信息将存储在本地，加密同步可选。</view>
+<scroll-view scroll-y class="container">
+  <view class="hero-card">
+    <view>
+      <view class="hero-kicker">个人健康档案</view>
+      <view class="hero-title">{{form.nickname || '完善基础信息'}}</view>
+      <view class="hero-sub">用于生成饮食、运动、测量和会员 AI 方案</view>
+    </view>
+    <view class="hero-badge">
+      <view class="hero-badge-value">{{completionText}}</view>
+      <view class="hero-badge-label">完成度</view>
+    </view>
   </view>
-</view>
+
+  <view class="summary-grid">
+    <view class="summary-item">
+      <view class="summary-label">目标</view>
+      <view class="summary-value">{{goalList[form.goal]}}</view>
+    </view>
+    <view class="summary-item">
+      <view class="summary-label">BMI</view>
+      <view class="summary-value">{{bmiText}}</view>
+    </view>
+    <view class="summary-item">
+      <view class="summary-label">运动</view>
+      <view class="summary-value">{{activityList[form.activityLevel]}}</view>
+    </view>
+  </view>
+
+  <view class="section-card">
+    <view class="section-header">
+      <view>
+        <view class="section-title">基础信息</view>
+        <view class="section-desc">这些信息会影响计划强度和热量建议</view>
+      </view>
+      <view class="section-mark">01</view>
+    </view>
+
+    <view class="form-row">
+      <view class="form-label">昵称</view>
+      <input class="form-input" placeholder="请输入昵称" value="{{form.nickname}}" data-field="nickname" bindinput="onInput" maxlength="20" />
+    </view>
+
+    <view class="inline-grid">
+      <view class="mini-field">
+        <view class="mini-label">性别</view>
+        <picker mode="selector" range="{{genderList}}" value="{{form.gender}}" bindchange="onPickGender">
+          <view class="mini-picker">{{genderList[form.gender]}} ›</view>
+        </picker>
+      </view>
+      <view class="mini-field">
+        <view class="mini-label">年龄</view>
+        <input class="mini-input" type="number" placeholder="岁" value="{{form.age}}" data-field="age" bindinput="onInput" />
+      </view>
+    </view>
+
+    <view class="inline-grid">
+      <view class="mini-field">
+        <view class="mini-label">身高</view>
+        <input class="mini-input" type="digit" placeholder="cm" value="{{form.heightCm}}" data-field="heightCm" bindinput="onInput" />
+      </view>
+      <view class="mini-field">
+        <view class="mini-label">体重</view>
+        <input class="mini-input" type="digit" placeholder="kg" value="{{form.weightKg}}" data-field="weightKg" bindinput="onInput" />
+      </view>
+    </view>
+  </view>
+
+  <view class="section-card">
+    <view class="section-header">
+      <view>
+        <view class="section-title">目标与习惯</view>
+        <view class="section-desc">让计划更贴近您现在的生活节奏</view>
+      </view>
+      <view class="section-mark">02</view>
+    </view>
+
+    <view class="select-row">
+      <view>
+        <view class="select-label">主要目标</view>
+        <view class="select-sub">优先解决的问题</view>
+      </view>
+      <picker mode="selector" range="{{goalList}}" value="{{form.goal}}" bindchange="onPickGoal">
+        <view class="select-value">{{goalList[form.goal]}} ›</view>
+      </picker>
+    </view>
+
+    <view class="select-row">
+      <view>
+        <view class="select-label">运动基础</view>
+        <view class="select-sub">决定训练起步强度</view>
+      </view>
+      <picker mode="selector" range="{{activityList}}" value="{{form.activityLevel}}" bindchange="onPickActivity">
+        <view class="select-value">{{activityList[form.activityLevel]}} ›</view>
+      </picker>
+    </view>
+
+    <view class="select-row">
+      <view>
+        <view class="select-label">饮食偏好</view>
+        <view class="select-sub">用于饮食建议筛选</view>
+      </view>
+      <picker mode="selector" range="{{dietList}}" value="{{form.dietPref}}" bindchange="onPickDiet">
+        <view class="select-value">{{dietList[form.dietPref]}} ›</view>
+      </picker>
+    </view>
+  </view>
+
+  <view class="section-card">
+    <view class="section-header">
+      <view>
+        <view class="section-title">健康风险</view>
+        <view class="section-desc">勾选后会调整提醒和方案边界</view>
+      </view>
+      <view class="section-mark">03</view>
+    </view>
+
+    <view class="risk-grid">
+      <view class="risk-chip {{form.hasHypertension ? 'active' : ''}}">
+        <view class="risk-title">高血压</view>
+        <switch color="#1E88E5" checked="{{form.hasHypertension}}" data-field="hasHypertension" bindchange="onSwitch" />
+      </view>
+      <view class="risk-chip {{form.hasDiabetes ? 'active' : ''}}">
+        <view class="risk-title">糖尿病 / 糖前期</view>
+        <switch color="#1E88E5" checked="{{form.hasDiabetes}}" data-field="hasDiabetes" bindchange="onSwitch" />
+      </view>
+      <view class="risk-chip {{form.hasHyperlipidemia ? 'active' : ''}}">
+        <view class="risk-title">高血脂</view>
+        <switch color="#1E88E5" checked="{{form.hasHyperlipidemia}}" data-field="hasHyperlipidemia" bindchange="onSwitch" />
+      </view>
+      <view class="risk-chip {{form.hasCVD ? 'active' : ''}}">
+        <view class="risk-title">心脑血管疾病</view>
+        <switch color="#1E88E5" checked="{{form.hasCVD}}" data-field="hasCVD" bindchange="onSwitch" />
+      </view>
+      <view class="risk-chip {{form.hasObesity ? 'active' : ''}}">
+        <view class="risk-title">肥胖</view>
+        <switch color="#1E88E5" checked="{{form.hasObesity}}" data-field="hasObesity" bindchange="onSwitch" />
+      </view>
+    </view>
+  </view>
+
+  <view class="section-card">
+    <view class="section-header">
+      <view>
+        <view class="section-title">当前用药</view>
+        <view class="section-desc">选填，AI 建议会避开明显冲突</view>
+      </view>
+      <view class="section-mark">04</view>
+    </view>
+    <textarea class="form-textarea" placeholder="例如：缬沙坦 80mg 每日一次、二甲双胍 0.5g 每日两次……"
+              value="{{form.medicines}}" data-field="medicines" bindinput="onInput" maxlength="500"></textarea>
+  </view>
+
+  <view class="save-bar">
+    <button class="btn-save" bindtap="onSave">保存档案</button>
+  </view>
+</scroll-view>

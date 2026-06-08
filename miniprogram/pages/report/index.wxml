@@ -1,6 +1,55 @@
 <view class="container">
-  <view class="card">
-    <view class="title-md">检查报告 OCR</view>
-    <view class="muted">上传体检 / 血压 / 血脂报告图片，自动抽取关键指标。报告图片端到端加密。</view>
+
+  <!-- 顶部说明 -->
+  <view class="hero">
+    <view class="hero-title">📷 检查报告 OCR</view>
+    <view class="hero-sub muted">上传体检 / 血压 / 血脂报告图片，AI 自动抽取关键指标并入库。报告图片端到端加密。</view>
+  </view>
+
+  <!-- 上传区 -->
+  <view class="upload-card">
+    <view class="upload-box" bindtap="onChooseImage" wx:if="{{!image}}">
+      <view class="upload-icon">📎</view>
+      <view class="upload-text">点击选择报告图片</view>
+      <view class="upload-hint muted">支持 JPG / PNG，单张不超过 5MB</view>
+    </view>
+
+    <view class="preview-wrap" wx:else>
+      <image class="preview" src="{{image}}" mode="widthFix" bindtap="onPreviewImage" />
+      <view class="preview-actions">
+        <button class="ghost" bindtap="onChooseImage">重选</button>
+        <button class="solid {{loading ? 'disabled' : ''}}" bindtap="onUpload" disabled="{{loading}}">
+          {{loading ? '识别中…' : '🚀 开始识别'}}
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 识别结果 -->
+  <view class="result-card" wx:if="{{result.length}}">
+    <view class="result-title">✅ 识别到 {{result.length}} 项指标</view>
+    <view class="result-row" wx:for="{{result}}" wx:key="key">
+      <view class="r-label">{{item.label}}</view>
+      <view class="r-val">{{item.value}} <text class="muted">{{item.unit}}</text></view>
+      <switch color="#1E88E5" checked="{{item.selected}}" data-idx="{{index}}" bindchange="onToggleSelect" />
+    </view>
+    <button class="btn-save" bindtap="onImport">导入选中项到指标库</button>
+  </view>
+
+  <!-- 历史报告 -->
+  <view class="history-card" wx:if="{{history.length}}">
+    <view class="hist-title">最近报告</view>
+    <view class="hist-row" wx:for="{{history}}" wx:key="id">
+      <image class="hist-thumb" src="{{item.thumb}}" mode="aspectFill" />
+      <view class="hist-body">
+        <view class="hist-name">{{item.name}}</view>
+        <view class="hist-time muted">{{item.time}}</view>
+      </view>
+      <view class="hist-count">{{item.count}} 项</view>
+    </view>
+  </view>
+
+  <view class="tip muted">
+    💡 OCR 调用云端 AI（GPT-4o / Qwen-VL），图片上传前在客户端加密；登录后可使用。未登录可在本地模式下手动录入。
   </view>
 </view>

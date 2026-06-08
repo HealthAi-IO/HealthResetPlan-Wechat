@@ -1,6 +1,128 @@
 <view class="container">
+
+  <!-- 今日进度 -->
+  <view class="progress-card">
+    <view class="progress-left">
+      <view class="progress-label">今日打卡进度</view>
+      <view class="progress-count">{{todayDone}} / {{todayTotal}} 条完成</view>
+      <view class="progress-bar-wrap">
+        <view class="progress-bar-fill" style="width:{{todayPct}}%"></view>
+      </view>
+    </view>
+    <view class="progress-pct">{{todayPct}}%</view>
+  </view>
+
+  <!-- 快速打卡 -->
   <view class="card">
-    <view class="title-md">今日打卡</view>
-    <view class="muted">饮食 / 运动 / 用药 / 称重 全场景打卡留痕，备注端到端加密。</view>
+    <view class="card-title">快速打卡</view>
+    <view class="card-sub muted">点击记录当前行为</view>
+    <view class="clock-grid">
+      <view class="clock-btn"
+            wx:for="{{clockTypes}}" wx:key="type"
+            data-type="{{item.type}}"
+            data-label="{{item.label}}"
+            data-hint="{{item.hint}}"
+            data-icon="{{item.icon}}"
+            bindtap="onClockTap">
+        <view class="clock-btn-icon">{{item.icon}}</view>
+        <view class="clock-btn-label">{{item.label}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 新增提醒 -->
+  <view class="card">
+    <view class="card-title">设置提醒</view>
+    <view class="card-sub muted">添加每日健康提醒</view>
+    <view class="reminder-chips">
+      <view class="reminder-chip" data-type="weight"   data-label="称重"   bindtap="onAddReminder">⚖️ 称重提醒</view>
+      <view class="reminder-chip" data-type="meal"     data-label="饮食"   bindtap="onAddReminder">🍚 饮食提醒</view>
+      <view class="reminder-chip" data-type="exercise" data-label="运动"   bindtap="onAddReminder">🏃 运动提醒</view>
+      <view class="reminder-chip" data-type="medicine" data-label="用药"   bindtap="onAddReminder">💊 用药提醒</view>
+      <view class="reminder-chip" data-type="water"    data-label="饮水"   bindtap="onAddReminder">💧 饮水提醒</view>
+    </view>
+  </view>
+
+  <!-- 今日打卡记录 -->
+  <view class="card">
+    <view class="card-title">今日打卡记录</view>
+    <view class="empty-tip muted" wx:if="{{!records.length}}">今日暂无记录，点击上方按钮开始打卡</view>
+    <view class="rec-item" wx:for="{{records}}" wx:key="id">
+      <view class="rec-label">{{item.label}}<text wx:if="{{item.isSkip}}" class="skip-tag"> 跳过</text></view>
+      <view class="rec-note muted" wx:if="{{item.note}}">{{item.note}}</view>
+      <view class="rec-time muted">{{item.timeLabel}}</view>
+    </view>
+  </view>
+
+  <!-- 提醒规则 -->
+  <view class="card" wx:if="{{reminders.length}}">
+    <view class="card-title">提醒规则</view>
+    <view class="reminder-item" wx:for="{{reminders}}" wx:key="id">
+      <view class="reminder-left">
+        <view class="reminder-name">{{item.label}}</view>
+        <view class="reminder-note muted">{{item.note}}</view>
+      </view>
+      <view class="reminder-right">
+        <view class="reminder-time">{{item.timeLabel}}</view>
+        <view class="reminder-del" data-id="{{item.id}}" bindtap="onDeleteReminder">✕</view>
+      </view>
+    </view>
+  </view>
+
+  <view style="height:40rpx"></view>
+</view>
+
+<!-- 备注弹窗 -->
+<view class="mask" wx:if="{{modal.show}}" bindtap="onModalCancel"></view>
+<view class="popup {{modal.show ? 'popup-show' : ''}}">
+  <view class="popup-title">{{modal.icon}} {{modal.label}}打卡</view>
+  <block wx:if="{{modal.isMedicine}}">
+    <view class="popup-label">用药状态</view>
+    <radio-group bindchange="onMedStatusChange">
+      <label class="radio-item"><radio value="done" checked="{{modal.medStatus==='done'}}"/>已服药</label>
+      <label class="radio-item"><radio value="skip" checked="{{modal.medStatus==='skip'}}"/>本次跳过</label>
+    </radio-group>
+  </block>
+  <block wx:else>
+    <view class="popup-label">备注（选填）</view>
+    <textarea class="popup-input" placeholder="{{modal.hint}}" value="{{modal.note}}" bindinput="onModalNoteInput" maxlength="200"></textarea>
+  </block>
+  <view class="popup-btns">
+    <button class="popup-cancel" bindtap="onModalCancel">取消</button>
+    <button class="popup-confirm" bindtap="onModalConfirm">保存</button>
+  </view>
+</view>
+
+<!-- 称重弹窗 -->
+<view class="mask" wx:if="{{weightModal.show}}" bindtap="onWeightCancel"></view>
+<view class="popup {{weightModal.show ? 'popup-show' : ''}}">
+  <view class="popup-title">⚖️ 称重打卡</view>
+  <view class="popup-label">当前体重（kg）</view>
+  <input class="popup-input-line" type="digit" placeholder="例如 70.5" value="{{weightModal.value}}" bindinput="onWeightInput" />
+  <view class="popup-btns">
+    <button class="popup-cancel" bindtap="onWeightCancel">取消</button>
+    <button class="popup-confirm" bindtap="onWeightConfirm">保存</button>
+  </view>
+</view>
+
+<!-- 提醒弹窗 -->
+<view class="mask" wx:if="{{reminderModal.show}}" bindtap="onReminderCancel"></view>
+<view class="popup {{reminderModal.show ? 'popup-show' : ''}}">
+  <view class="popup-title">新增{{reminderModal.label}}提醒</view>
+  <view class="popup-label">提醒时间</view>
+  <view class="time-pickers">
+    <picker mode="selector" range="{{hourRange}}" value="{{reminderModal.hour}}" bindchange="onPickHour">
+      <view class="time-pick-btn">{{reminderModal.hourStr}} 时</view>
+    </picker>
+    <view class="time-sep">:</view>
+    <picker mode="selector" range="{{minRange}}" value="{{reminderModal.minute}}" bindchange="onPickMinute">
+      <view class="time-pick-btn">{{reminderModal.minStr}} 分</view>
+    </picker>
+  </view>
+  <view class="popup-label">备注（选填）</view>
+  <input class="popup-input-line" placeholder="备注说明" value="{{reminderModal.note}}" bindinput="onReminderNoteInput" />
+  <view class="popup-btns">
+    <button class="popup-cancel" bindtap="onReminderCancel">取消</button>
+    <button class="popup-confirm" bindtap="onReminderConfirm">保存</button>
   </view>
 </view>

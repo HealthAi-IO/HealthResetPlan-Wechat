@@ -1,11 +1,95 @@
 <view class="container">
-  <view class="card">
-    <view class="title-md">端到端加密云同步</view>
-    <view class="muted">由于微信小程序限制，主密钥备份请在 Flutter 客户端 / Web 端完成。</view>
-    <view class="muted">本小程序仅在内存中持有 UMK，不持久化明文。</view>
+
+  <!-- 账号卡片 -->
+  <view class="account-card" wx:if="{{isLoggedIn}}">
+    <view class="avatar-wrap" bindtap="onChooseAvatar">
+      <image wx:if="{{avatarSrc}}" class="avatar-img" src="{{avatarSrc}}" mode="aspectFill" />
+      <view wx:else class="avatar">{{nickname[0] || '健'}}</view>
+      <view class="avatar-camera">📷</view>
+    </view>
+    <view class="account-info">
+      <view class="account-name">{{nickname}}</view>
+      <view class="account-id muted">已绑定账号</view>
+    </view>
+    <view class="account-tag">已登录</view>
   </view>
-  <view class="card">
-    <view class="title-md">关于</view>
-    <view class="muted">健康重启计划 · 微信小程序 v0.1.0</view>
+
+  <view class="login-card" wx:else bindtap="onGoLogin">
+    <view class="login-avatar">👤</view>
+    <view class="login-info">
+      <view class="login-title">登录 / 注册账号</view>
+      <view class="login-sub muted">登录后可开启云同步、AI 计划生成等功能</view>
+    </view>
+    <view class="arrow muted">›</view>
   </view>
+
+  <!-- 功能列表 -->
+  <view class="section-card">
+    <view class="cell" bindtap="onGoProfile">
+      <view class="cell-icon">🗂️</view>
+      <view class="cell-label">健康档案</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+    <view class="cell-divider"></view>
+    <view class="cell" bindtap="onGoIndicators">
+      <view class="cell-icon">📝</view>
+      <view class="cell-label">指标录入 / 历史</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+    <view class="cell-divider"></view>
+    <view class="cell" bindtap="onGoChat">
+      <view class="cell-icon">🤖</view>
+      <view class="cell-label">AI 健康助理</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+    <view class="cell-divider"></view>
+    <view class="cell" bindtap="onGoReport">
+      <view class="cell-icon">📷</view>
+      <view class="cell-label">检查报告 OCR</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+  </view>
+
+  <!-- 云同步 + 会员 -->
+  <view class="section-card">
+    <view class="cell" bindtap="onGoMembership">
+      <view class="cell-icon">👑</view>
+      <view class="cell-label">会员中心</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+    <view class="cell-divider"></view>
+    <view class="cell" bindtap="onGoSync">
+      <view class="cell-icon">🔐</view>
+      <view class="cell-label">端到端加密云同步</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+  </view>
+
+  <!-- 其他操作 -->
+  <view class="section-card">
+    <view class="cell" bindtap="onResetDemoData">
+      <view class="cell-icon">🧪</view>
+      <view class="cell-label">[测试] 恢复默认数据</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+    <view class="cell-divider"></view>
+    <view class="cell" bindtap="onClearData">
+      <view class="cell-icon">🗑️</view>
+      <view class="cell-label cell-danger">清除本地数据</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+    <view class="cell-divider"></view>
+    <view class="cell" bindtap="onFeedback">
+      <view class="cell-icon">✉️</view>
+      <view class="cell-label">联系我们</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <button class="btn-logout" wx:if="{{isLoggedIn}}" bindtap="onLogout">退出登录</button>
+
+  <!-- 版本 -->
+  <view class="version muted">健康重启计划 · 微信小程序 {{version}}</view>
+
 </view>

@@ -1,0 +1,75 @@
+.container {
+  min-height: 100vh;
+  padding: 40rpx 32rpx 60rpx;
+  background: linear-gradient(180deg, #E3F2FD 0%, #F7FAF9 50%);
+  box-sizing: border-box;
+}
+
+.muted { color: #9CA3AF; }
+
+/* 品牌 */
+.brand { text-align: center; padding: 40rpx 0 30rpx; }
+.brand-logo {
+  width: 120rpx; height: 120rpx; line-height: 120rpx;
+  margin: 0 auto 20rpx; border-radius: 30rpx;
+  background: linear-gradient(135deg, #1E88E5 0%, #00ACC1 100%);
+  color: #fff; font-size: 56rpx; text-align: center;
+  box-shadow: 0 12rpx 28rpx rgba(30,136,229,0.25);
+}
+.brand-name { font-size: 40rpx; font-weight: 700; color: #1F2937; }
+.brand-sub { font-size: 24rpx; margin-top: 8rpx; }
+
+/* Tab */
+.tabs {
+  display: flex; background: #fff; border-radius: 20rpx;
+  padding: 8rpx; margin-top: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.04);
+}
+.tab {
+  flex: 1; text-align: center; padding: 20rpx 0;
+  font-size: 28rpx; color: #6B7280; border-radius: 16rpx;
+  transition: all 0.2s;
+}
+.tab.active {
+  background: linear-gradient(135deg, #1E88E5, #00ACC1);
+  color: #fff; font-weight: 700;
+}
+
+/* 表单 */
+.form-card {
+  background: #fff; border-radius: 24rpx; padding: 20rpx 28rpx;
+  margin-top: 28rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.form-row {
+  display: flex; align-items: center; padding: 24rpx 0;
+  border-bottom: 2rpx solid #F3F4F6; position: relative;
+}
+.form-row:last-child { border-bottom: none; }
+.form-label { width: 140rpx; font-size: 28rpx; color: #374151; font-weight: 600; }
+.form-input { flex: 1; font-size: 28rpx; color: #1F2937; }
+.form-eye { padding-left: 20rpx; font-size: 32rpx; }
+.form-tip { font-size: 22rpx; padding: 8rpx 4rpx 0; }
+
+/* 按钮 */
+.btn-primary {
+  margin-top: 40rpx; height: 92rpx; line-height: 92rpx;
+  background: linear-gradient(135deg, #1E88E5 0%, #00ACC1 100%);
+  color: #fff; font-size: 32rpx; font-weight: 700;
+  border-radius: 999rpx; border: none;
+  box-shadow: 0 12rpx 28rpx rgba(30,136,229,0.25);
+}
+.btn-primary.disabled { opacity: 0.6; }
+
+.skip-row {
+  text-align: center; margin-top: 32rpx;
+  font-size: 26rpx; color: #6B7280;
+}
+
+/* 说明 */
+.tip-card {
+  margin-top: 50rpx; padding: 24rpx;
+  background: #F9FAFB; border-radius: 20rpx;
+  border: 2rpx dashed #D1D5DB;
+}
+.tip-title { font-size: 26rpx; font-weight: 700; color: #374151; margin-bottom: 8rpx; }
+.tip-body { font-size: 24rpx; line-height: 1.6; }

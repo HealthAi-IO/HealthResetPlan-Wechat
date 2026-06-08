@@ -1,1 +1,54 @@
-.container { padding: 24rpx; }
+.container { padding: 24rpx; background: #F7FAF9; min-height: 100vh; }
+
+.profile-card { background: linear-gradient(135deg, #1565C0, #1E88E5); border-radius: 20rpx; padding: 28rpx; margin-bottom: 20rpx; display: flex; align-items: center; gap: 20rpx; }
+.profile-avatar-wrap { position: relative; width: 88rpx; height: 88rpx; flex-shrink: 0; }
+.profile-avatar, .profile-avatar-img { width: 88rpx; height: 88rpx; border-radius: 50%; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 36rpx; font-weight: 700; overflow: hidden; }
+.avatar-camera { position: absolute; right: -4rpx; bottom: -4rpx; width: 30rpx; height: 30rpx; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 16rpx; }
+.profile-info { flex: 1; }
+.profile-name { color: #fff; font-size: 30rpx; font-weight: 700; margin-bottom: 4rpx; }
+.profile-id { font-size: 22rpx; color: rgba(255,255,255,.75); }
+.profile-stats { display: flex; gap: 20rpx; }
+.stat-item { text-align: center; }
+.stat-val { color: #fff; font-size: 30rpx; font-weight: 800; }
+.stat-key { color: rgba(255,255,255,.75); font-size: 20rpx; }
+
+.btn-add { background: #fff; color: #1E88E5; border: 2rpx solid #1E88E5; border-radius: 999rpx; font-size: 26rpx; font-weight: 600; padding: 16rpx 0; margin-bottom: 20rpx; width: 100%; }
+
+.empty { background: #fff; border-radius: 20rpx; padding: 60rpx 28rpx; text-align: center; margin-bottom: 24rpx; }
+.empty-icon { font-size: 64rpx; margin-bottom: 16rpx; }
+
+.group-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 8rpx rgba(15,23,42,.05); }
+.group-header { display: flex; align-items: center; gap: 16rpx; }
+.group-icon { font-size: 40rpx; flex-shrink: 0; }
+.group-body { flex: 1; }
+.group-label { font-size: 26rpx; font-weight: 700; color: #1F2937; margin-bottom: 4rpx; }
+.group-latest { font-size: 28rpx; font-weight: 800; color: #1E88E5; }
+.group-right { display: flex; align-items: center; gap: 12rpx; }
+.group-date { font-size: 20rpx; }
+.trend { font-size: 24rpx; font-weight: 700; }
+.trend.up { color: #E53935; } .trend.down { color: #2BBE7A; } .trend.flat { color: #9CA3AF; }
+.expand-arrow { font-size: 20rpx; color: #9CA3AF; }
+
+/* 趋势图区 */
+.chart-area {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #F3F4F6;
+}
+.chart-title-row { display: flex; justify-content: space-between; padding: 0 4rpx 8rpx; }
+.chart-title { font-size: 24rpx; color: #6B7280; font-weight: 600; }
+.chart-meta { font-size: 22rpx; }
+.chart-legend { display: flex; align-items: center; gap: 8rpx; padding: 8rpx 4rpx 0; font-size: 22rpx; }
+.legend-dot {
+  display: inline-block; width: 16rpx; height: 16rpx;
+  border-radius: 50%; margin-right: 4rpx;
+}
+.legend-label { padding-right: 12rpx; }
+
+.history-list { margin-top: 16rpx; border-top: 1rpx solid #F3F4F6; padding-top: 12rpx; }
+.history-item { display: flex; justify-content: space-between; align-items: center; padding: 10rpx 0; border-bottom: 1rpx solid #F9FAFB; }
+.history-item:last-child { border-bottom: none; }
+.history-val { font-size: 26rpx; font-weight: 600; }
+.history-time { font-size: 22rpx; }
+
+.muted { color: #6B7280; font-size: 24rpx; }

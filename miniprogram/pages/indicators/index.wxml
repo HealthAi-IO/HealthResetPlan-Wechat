@@ -1,0 +1,199 @@
+<view class="container">
+
+  <!-- 顶部 Tab -->
+  <view class="seg">
+    <view class="seg-item {{view==='input' ? 'active' : ''}}" bindtap="onSwitchInput">录入</view>
+    <view class="seg-item {{view==='history' ? 'active' : ''}}" bindtap="onSwitchHistory">历史</view>
+  </view>
+
+  <!-- ============ 录入视图 ============ -->
+  <block wx:if="{{view==='input'}}">
+    <!-- 类型选择 -->
+    <view class="section-label">指标类型</view>
+    <view class="type-grid">
+      <view class="type-chip {{type===item.value ? 'active' : ''}}"
+            wx:for="{{typeList}}" wx:key="value"
+            data-type="{{item.value}}"
+            bindtap="onPickType">
+        <text class="type-icon">{{item.icon}}</text>
+        <text class="type-text">{{item.label}}</text>
+      </view>
+    </view>
+
+    <!-- 测量时间 -->
+    <view class="section-label">测量时间</view>
+    <view class="card">
+      <picker mode="multiSelector"
+              range="{{timeRange}}"
+              value="{{timeIdx}}"
+              bindchange="onTimeChange">
+        <view class="time-row">📅 {{measuredAtLabel}}</view>
+      </picker>
+    </view>
+
+    <!-- 数值录入 -->
+    <view class="section-label">数值录入</view>
+    <view class="card form">
+
+      <!-- 体重 -->
+      <block wx:if="{{type==='weight'}}">
+        <view class="field">
+          <view class="field-label">体重</view>
+          <input class="field-input" type="digit" placeholder="例如 70.5" value="{{form.weightKg}}" data-field="weightKg" bindinput="onInput" />
+          <view class="field-unit">kg</view>
+        </view>
+      </block>
+
+      <!-- 血压 -->
+      <block wx:if="{{type==='bp'}}">
+        <view class="field">
+          <view class="field-label">收缩压</view>
+          <input class="field-input" type="number" placeholder="例如 115" value="{{form.systolic}}" data-field="systolic" bindinput="onInput" />
+          <view class="field-unit">mmHg</view>
+        </view>
+        <view class="field">
+          <view class="field-label">舒张压</view>
+          <input class="field-input" type="number" placeholder="例如 75" value="{{form.diastolic}}" data-field="diastolic" bindinput="onInput" />
+          <view class="field-unit">mmHg</view>
+        </view>
+        <view class="field">
+          <view class="field-label">心率</view>
+          <input class="field-input" type="number" placeholder="选填" value="{{form.heartRate}}" data-field="heartRate" bindinput="onInput" />
+          <view class="field-unit">bpm</view>
+        </view>
+      </block>
+
+      <!-- 血糖 -->
+      <block wx:if="{{type==='glucose'}}">
+        <view class="field">
+          <view class="field-label">血糖</view>
+          <input class="field-input" type="digit" placeholder="例如 5.0" value="{{form.glucoseMmol}}" data-field="glucoseMmol" bindinput="onInput" />
+          <view class="field-unit">mmol/L</view>
+        </view>
+        <view class="sub-label">测量类型</view>
+        <view class="chip-row">
+          <view class="sm-chip {{form.mealType==='fasting' ? 'on' : ''}}" data-v="fasting" bindtap="onPickMeal">空腹</view>
+          <view class="sm-chip {{form.mealType==='postmeal' ? 'on' : ''}}" data-v="postmeal" bindtap="onPickMeal">餐后 2h</view>
+          <view class="sm-chip {{form.mealType==='random' ? 'on' : ''}}" data-v="random" bindtap="onPickMeal">随机</view>
+        </view>
+      </block>
+
+      <!-- 心率 -->
+      <block wx:if="{{type==='heart_rate'}}">
+        <view class="field">
+          <view class="field-label">心率</view>
+          <input class="field-input" type="number" placeholder="例如 72" value="{{form.bpm}}" data-field="bpm" bindinput="onInput" />
+          <view class="field-unit">bpm</view>
+        </view>
+      </block>
+
+      <!-- 血脂 -->
+      <block wx:if="{{type==='lipid'}}">
+        <view class="field">
+          <view class="field-label">总胆固醇</view>
+          <input class="field-input" type="digit" placeholder="选填" value="{{form.tc}}" data-field="tc" bindinput="onInput" />
+          <view class="field-unit">mmol/L</view>
+        </view>
+        <view class="field">
+          <view class="field-label">LDL</view>
+          <input class="field-input" type="digit" placeholder="选填" value="{{form.ldl}}" data-field="ldl" bindinput="onInput" />
+          <view class="field-unit">mmol/L</view>
+        </view>
+        <view class="field">
+          <view class="field-label">HDL</view>
+          <input class="field-input" type="digit" placeholder="选填" value="{{form.hdl}}" data-field="hdl" bindinput="onInput" />
+          <view class="field-unit">mmol/L</view>
+        </view>
+        <view class="field">
+          <view class="field-label">甘油三酯</view>
+          <input class="field-input" type="digit" placeholder="选填" value="{{form.tg}}" data-field="tg" bindinput="onInput" />
+          <view class="field-unit">mmol/L</view>
+        </view>
+        <view class="hint muted">血脂各项均可选填，对照体检报告录入</view>
+      </block>
+
+      <!-- 体脂 -->
+      <block wx:if="{{type==='body_fat'}}">
+        <view class="field">
+          <view class="field-label">体脂率</view>
+          <input class="field-input" type="digit" placeholder="例如 25.3" value="{{form.bodyFatPct}}" data-field="bodyFatPct" bindinput="onInput" />
+          <view class="field-unit">%</view>
+        </view>
+      </block>
+
+      <!-- 腰围 -->
+      <block wx:if="{{type==='waist'}}">
+        <view class="field">
+          <view class="field-label">腰围</view>
+          <input class="field-input" type="digit" placeholder="例如 82.5" value="{{form.waistCm}}" data-field="waistCm" bindinput="onInput" />
+          <view class="field-unit">cm</view>
+        </view>
+      </block>
+
+      <!-- 血氧 -->
+      <block wx:if="{{type==='spo2'}}">
+        <view class="field">
+          <view class="field-label">血氧</view>
+          <input class="field-input" type="number" placeholder="例如 98" value="{{form.spo2Pct}}" data-field="spo2Pct" bindinput="onInput" />
+          <view class="field-unit">%</view>
+        </view>
+        <view class="hint muted">正常 ≥ 95%，低于 90% 建议就医</view>
+      </block>
+
+      <!-- 睡眠 -->
+      <block wx:if="{{type==='sleep'}}">
+        <view class="field">
+          <view class="field-label">时长</view>
+          <input class="field-input" type="digit" placeholder="例如 7.5" value="{{form.sleepHours}}" data-field="sleepHours" bindinput="onInput" />
+          <view class="field-unit">h</view>
+        </view>
+        <view class="sub-label">睡眠质量</view>
+        <view class="chip-row">
+          <view class="sm-chip {{form.quality==='good' ? 'on' : ''}}" data-v="good" bindtap="onPickQuality">好</view>
+          <view class="sm-chip {{form.quality==='fair' ? 'on' : ''}}" data-v="fair" bindtap="onPickQuality">一般</view>
+          <view class="sm-chip {{form.quality==='poor' ? 'on' : ''}}" data-v="poor" bindtap="onPickQuality">差</view>
+        </view>
+      </block>
+
+      <!-- 步数 -->
+      <block wx:if="{{type==='steps'}}">
+        <view class="field">
+          <view class="field-label">步数</view>
+          <input class="field-input" type="number" placeholder="例如 8000" value="{{form.steps}}" data-field="steps" bindinput="onInput" />
+          <view class="field-unit">步</view>
+        </view>
+        <view class="hint muted">建议每日 6000 ~ 10000 步</view>
+      </block>
+    </view>
+
+    <button class="btn-save" bindtap="onSave">保存记录</button>
+  </block>
+
+  <!-- ============ 历史视图 ============ -->
+  <block wx:else>
+    <view class="empty" wx:if="{{!groups.length}}">
+      <view class="empty-icon">📊</view>
+      <view class="muted">还没有记录，去录入第一条吧</view>
+    </view>
+
+    <view class="group-card" wx:for="{{groups}}" wx:key="type" wx:for-item="g" data-type="{{g.type}}" bindtap="onToggleGroup">
+      <view class="group-row">
+        <view class="g-icon">{{g.icon}}</view>
+        <view class="g-body">
+          <view class="g-label">{{g.label}}</view>
+          <view class="g-latest muted">{{g.latest}} · {{g.latestTime}}</view>
+        </view>
+        <view class="g-arrow muted">{{g.expanded ? '▲' : '▼'}}</view>
+      </view>
+      <view class="history-list" wx:if="{{g.expanded}}">
+        <view class="history-row" wx:for="{{g.history}}" wx:key="id" wx:for-item="h">
+          <view class="history-val">{{h.displayValue}}</view>
+          <view class="history-time muted">{{h.timeLabel}}</view>
+          <view class="history-del" catchtap="onDelete" data-id="{{h.id}}">删除</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view style="height:60rpx"></view>
+</view>

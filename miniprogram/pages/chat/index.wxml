@@ -1,0 +1,52 @@
+<view class="page">
+
+  <!-- 顶部使用量 -->
+  <view class="usage-bar">
+    <text>🤖 AI 健康助理</text>
+    <text class="muted">今日剩余 {{remaining}} / {{limit}}</text>
+  </view>
+
+  <!-- 消息列表 -->
+  <scroll-view scroll-y class="msg-list"
+               scroll-into-view="msg-{{anchor}}"
+               scroll-with-animation="true">
+
+    <view class="welcome" wx:if="{{!messages.length}}">
+      <view class="welcome-icon">🤖</view>
+      <view class="welcome-title">您好，我是健康助理</view>
+      <view class="welcome-sub muted">基于您的健康档案和最近指标，可以咨询饮食、运动、用药等问题</view>
+
+      <view class="quick-list">
+        <view class="quick-item"
+              wx:for="{{quickQuestions}}" wx:key="*this"
+              data-q="{{item}}" bindtap="onQuickTap">{{item}}</view>
+      </view>
+    </view>
+
+    <block wx:else>
+      <view wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}" class="msg-row {{item.role}}">
+        <view class="bubble {{item.role}}">
+          <view class="bubble-text">{{item.content}}{{item.role==='ai' && item.streaming ? '▌' : ''}}</view>
+        </view>
+      </view>
+    </block>
+
+    <view style="height:40rpx"></view>
+  </scroll-view>
+
+  <!-- 输入栏 -->
+  <view class="input-bar">
+    <input class="input"
+           placeholder="向 AI 提问，如：今晚吃什么好？"
+           value="{{input}}"
+           confirm-type="send"
+           bindinput="onInputChange"
+           bindconfirm="onSend"
+           disabled="{{sending}}" />
+    <button class="send-btn {{sending || !input ? 'disabled' : ''}}"
+            disabled="{{sending || !input}}"
+            bindtap="onSend">
+      {{sending ? '...' : '发送'}}
+    </button>
+  </view>
+</view>

@@ -1,1 +1,6 @@
-{ "navigationBarTitleText": "数据" }
+{
+  "navigationBarTitleText": "数据",
+  "usingComponents": {
+    "trend-chart": "/components/trend-chart/index"
+  }
+}

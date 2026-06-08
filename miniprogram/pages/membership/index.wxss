@@ -1,0 +1,101 @@
+.container {
+  padding: 24rpx 28rpx 80rpx;
+  background: #F7FAF9;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+.muted { color: #9CA3AF; }
+
+/* 顶部 */
+.hero {
+  background: linear-gradient(135deg, #455A64 0%, #607D8B 100%);
+  color: #fff; border-radius: 28rpx;
+  padding: 36rpx 32rpx;
+  box-shadow: 0 12rpx 28rpx rgba(0,0,0,0.08);
+}
+.hero.active {
+  background: linear-gradient(135deg, #B8860B 0%, #DAA520 50%, #FFD700 100%);
+  color: #4A2C00;
+  box-shadow: 0 12rpx 28rpx rgba(184,134,11,0.35);
+}
+.hero-row { display: flex; align-items: center; }
+.hero-crown { font-size: 70rpx; padding-right: 24rpx; }
+.hero-title { font-size: 38rpx; font-weight: 700; }
+.hero-sub { font-size: 24rpx; margin-top: 8rpx; opacity: 0.85; }
+
+.features { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
+.feature-chip {
+  padding: 6rpx 18rpx; border-radius: 999rpx;
+  background: rgba(255,255,255,0.25);
+  font-size: 22rpx; font-weight: 600;
+}
+
+/* 章节 */
+.section-title {
+  font-size: 28rpx; font-weight: 700;
+  color: #374151; padding: 36rpx 8rpx 16rpx;
+}
+
+/* 套餐 */
+.plan-list { display: flex; flex-direction: column; gap: 18rpx; }
+.plan-card {
+  position: relative;
+  background: #fff; border-radius: 24rpx;
+  padding: 28rpx 28rpx 24rpx;
+  border: 4rpx solid transparent;
+  box-shadow: 0 4rpx 14rpx rgba(0,0,0,0.04);
+  transition: all 0.15s;
+}
+.plan-card.on { border-color: #1E88E5; box-shadow: 0 8rpx 24rpx rgba(30,136,229,0.15); }
+.plan-card.rec { background: linear-gradient(180deg, #FFF8E1, #fff); }
+
+.plan-tag {
+  position: absolute; top: -2rpx; right: 24rpx;
+  background: linear-gradient(135deg, #FF6B6B, #F50057);
+  color: #fff; font-size: 20rpx; font-weight: 700;
+  padding: 4rpx 16rpx; border-radius: 0 0 12rpx 12rpx;
+}
+.plan-name { font-size: 30rpx; font-weight: 700; color: #1F2937; }
+.plan-price { padding: 12rpx 0; display: flex; align-items: baseline; }
+.plan-currency { font-size: 24rpx; color: #E53935; font-weight: 700; }
+.plan-amount { font-size: 52rpx; color: #E53935; font-weight: 800; padding: 0 4rpx; }
+.plan-period { font-size: 22rpx; }
+.plan-feature { font-size: 22rpx; line-height: 1.7; }
+
+.empty { text-align: center; padding: 80rpx 0; }
+
+/* 支付按钮 */
+.btn-pay {
+  margin-top: 32rpx; height: 96rpx; line-height: 96rpx;
+  background: linear-gradient(135deg, #07C160, #00A85A);
+  color: #fff; font-size: 32rpx; font-weight: 700;
+  border-radius: 999rpx; border: none;
+  box-shadow: 0 12rpx 28rpx rgba(7,193,96,0.25);
+}
+.btn-pay.disabled { background: #D1D5DB; box-shadow: none; opacity: 0.7; }
+
+/* 兑换码 */
+.redeem-card {
+  margin-top: 36rpx; background: #fff;
+  border-radius: 24rpx; padding: 24rpx;
+  box-shadow: 0 4rpx 14rpx rgba(0,0,0,0.04);
+}
+.redeem-title { font-size: 28rpx; font-weight: 700; color: #1F2937; padding-bottom: 16rpx; }
+.redeem-row { display: flex; gap: 14rpx; }
+.redeem-input {
+  flex: 1; height: 76rpx;
+  background: #F3F4F6; border-radius: 16rpx;
+  padding: 0 22rpx; font-size: 26rpx;
+}
+.redeem-btn {
+  width: 160rpx; height: 76rpx; line-height: 76rpx;
+  background: #1E88E5; color: #fff;
+  font-size: 26rpx; border-radius: 16rpx; border: none;
+  padding: 0;
+}
+.redeem-tip { font-size: 22rpx; padding-top: 12rpx; }
+
+.agree-tip {
+  margin-top: 32rpx; padding: 0 16rpx;
+  font-size: 22rpx; line-height: 1.6; text-align: center;
+}

@@ -1,6 +1,89 @@
-<view class="container">
-  <view class="card">
-    <view class="title-md">数据趋势</view>
-    <view class="muted">体重、体脂、血压、血脂、血糖随时间变化的可视化报告。</view>
+<scroll-view scroll-y class="container">
+
+  <!-- 用户资料卡 -->
+  <view class="profile-card">
+    <view class="profile-avatar-wrap" bindtap="onChooseAvatar">
+      <image wx:if="{{avatarSrc}}" class="profile-avatar-img" src="{{avatarSrc}}" mode="aspectFill" />
+      <view wx:else class="profile-avatar">{{nickname[0] || '健'}}</view>
+      <view class="avatar-camera" wx:if="{{isLoggedIn}}">📷</view>
+    </view>
+    <view class="profile-info">
+      <view class="profile-name">{{nickname}}</view>
+      <view class="profile-id muted" wx:if="{{isLoggedIn}}">已绑定账号</view>
+      <view class="profile-id muted" wx:else>本地模式</view>
+    </view>
+    <view class="profile-stats">
+      <view class="stat-item">
+        <view class="stat-val">{{totalIndicators}}</view>
+        <view class="stat-key muted">指标</view>
+      </view>
+      <view class="stat-item">
+        <view class="stat-val">{{totalClocks}}</view>
+        <view class="stat-key muted">打卡</view>
+      </view>
+      <view class="stat-item">
+        <view class="stat-val">{{accountDays}}</view>
+        <view class="stat-key muted">天</view>
+      </view>
+    </view>
   </view>
-</view>
+
+  <!-- 录入按钮 -->
+  <button class="btn-add" bindtap="onGoIndicators">+ 录入新指标</button>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:if="{{!groups.length}}">
+    <view class="empty-icon">📊</view>
+    <view class="muted">暂无指标数据，去录入第一条指标吧</view>
+  </view>
+
+  <!-- 各类型指标 -->
+  <view class="group-card" wx:for="{{groups}}" wx:key="type" data-index="{{index}}" bindtap="onToggleGroup">
+    <view class="group-header">
+      <view class="group-icon">{{item.icon}}</view>
+      <view class="group-body">
+        <view class="group-label">{{item.label}}</view>
+        <view class="group-latest">{{item.latest}}</view>
+      </view>
+      <view class="group-right">
+        <view class="group-date muted">{{item.latestTime}}</view>
+        <view class="trend {{item.trend}}">
+          <text wx:if="{{item.trend==='up'}}">↑</text>
+          <text wx:elif="{{item.trend==='down'}}">↓</text>
+          <text wx:else>—</text>
+        </view>
+        <view class="expand-arrow">{{item.expanded ? '▲' : '▼'}}</view>
+      </view>
+    </view>
+
+    <!-- 展开：图表 + 历史 -->
+    <block wx:if="{{item.expanded}}">
+      <view class="chart-area" catchtap="onChartArea">
+        <view class="chart-title-row">
+          <text class="chart-title">近 30 天趋势</text>
+          <text class="chart-meta muted">{{item.chartCount}} 条</text>
+        </view>
+        <trend-chart
+          points="{{item.chartPoints}}"
+          points2="{{item.chartPoints2}}"
+          color="{{item.color}}"
+          color2="#FBC02D" />
+        <view class="chart-legend" wx:if="{{item.type==='bp'}}">
+          <text class="legend-dot" style="background:{{item.color}}"></text>
+          <text class="legend-label muted">收缩压</text>
+          <text class="legend-dot" style="background:#FBC02D"></text>
+          <text class="legend-label muted">舒张压</text>
+        </view>
+      </view>
+
+      <view class="history-list">
+        <view class="history-item" wx:for="{{item.history}}" wx:key="id" wx:for-item="h">
+          <view class="history-val">{{h.displayValue}}</view>
+          <view class="history-time muted">{{h.timeLabel}}</view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view style="height:40rpx"></view>
+</scroll-view>

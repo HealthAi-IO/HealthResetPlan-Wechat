@@ -1,1 +1,92 @@
-.container { padding: 24rpx; }
+.container {
+  padding: 24rpx 28rpx 80rpx;
+  background: #F7FAF9;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+.muted { color: #9CA3AF; }
+
+.hero { padding: 16rpx 8rpx 24rpx; }
+.hero-title { font-size: 36rpx; font-weight: 700; color: #1F2937; }
+.hero-sub { font-size: 24rpx; margin-top: 10rpx; line-height: 1.6; }
+
+/* 上传卡 */
+.upload-card {
+  background: #fff; border-radius: 24rpx; padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.upload-box {
+  border: 4rpx dashed #BBD9F4; border-radius: 20rpx;
+  padding: 80rpx 0; text-align: center;
+}
+.upload-icon { font-size: 70rpx; margin-bottom: 12rpx; }
+.upload-text { font-size: 30rpx; color: #1E88E5; font-weight: 600; }
+.upload-hint { font-size: 22rpx; margin-top: 8rpx; }
+
+.preview-wrap { text-align: center; }
+.preview {
+  width: 100%; max-height: 600rpx;
+  border-radius: 16rpx; background: #F3F4F6;
+}
+.preview-actions {
+  display: flex; gap: 16rpx; margin-top: 24rpx;
+}
+.preview-actions button {
+  flex: 1; height: 80rpx; line-height: 80rpx;
+  font-size: 28rpx; border-radius: 16rpx;
+}
+.ghost {
+  background: #F3F4F6; color: #374151; border: none;
+}
+.solid {
+  background: linear-gradient(135deg, #1E88E5, #00ACC1);
+  color: #fff; font-weight: 700; border: none;
+}
+.solid.disabled { opacity: 0.6; }
+
+/* 结果 */
+.result-card {
+  background: #fff; border-radius: 24rpx;
+  padding: 24rpx; margin-top: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.result-title { font-size: 30rpx; font-weight: 700; color: #1F2937; padding-bottom: 16rpx; }
+.result-row {
+  display: flex; align-items: center;
+  padding: 18rpx 0; border-top: 2rpx solid #F3F4F6;
+}
+.r-label { width: 200rpx; font-size: 28rpx; color: #374151; }
+.r-val { flex: 1; font-size: 30rpx; font-weight: 700; color: #1E88E5; }
+
+.btn-save {
+  margin-top: 24rpx; height: 88rpx; line-height: 88rpx;
+  background: linear-gradient(135deg, #1E88E5, #00ACC1);
+  color: #fff; font-weight: 700; font-size: 30rpx;
+  border-radius: 999rpx; border: none;
+}
+
+/* 历史 */
+.history-card {
+  background: #fff; border-radius: 24rpx;
+  padding: 24rpx; margin-top: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.hist-title { font-size: 28rpx; font-weight: 700; color: #1F2937; padding-bottom: 16rpx; }
+.hist-row {
+  display: flex; align-items: center;
+  padding: 16rpx 0; border-top: 2rpx solid #F3F4F6;
+}
+.hist-thumb { width: 100rpx; height: 100rpx; border-radius: 12rpx; background: #F3F4F6; }
+.hist-body { flex: 1; padding-left: 16rpx; }
+.hist-name { font-size: 28rpx; color: #1F2937; }
+.hist-time { font-size: 22rpx; margin-top: 4rpx; }
+.hist-count {
+  padding: 6rpx 16rpx; background: #E3F2FD;
+  color: #1E88E5; font-size: 22rpx; border-radius: 999rpx;
+}
+
+.tip {
+  margin-top: 24rpx; padding: 20rpx;
+  background: #F9FAFB; border-radius: 16rpx;
+  font-size: 22rpx; line-height: 1.6;
+}

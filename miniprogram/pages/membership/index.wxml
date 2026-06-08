@@ -1,0 +1,68 @@
+<scroll-view scroll-y class="container">
+
+  <!-- 当前会员状态 -->
+  <view class="hero {{status.active ? 'active' : ''}}">
+    <view class="hero-row">
+      <view class="hero-crown">{{status.active ? '👑' : '🆓'}}</view>
+      <view class="hero-body">
+        <view class="hero-title">{{status.active ? status.planName : '免费用户'}}</view>
+        <view class="hero-sub" wx:if="{{status.active}}">有效期至 {{status.expiresLabel}}</view>
+        <view class="hero-sub" wx:else>升级会员，解锁端到端加密云同步等高级功能</view>
+      </view>
+    </view>
+    <view class="features" wx:if="{{status.active}}">
+      <view class="feature-chip" wx:for="{{status.features}}" wx:key="*this">✓ {{item}}</view>
+    </view>
+  </view>
+
+  <!-- 套餐 -->
+  <view class="section-title">📦 选择套餐</view>
+  <view class="plan-list">
+    <view class="plan-card {{selectedPlan===item.code ? 'on' : ''}} {{item.recommend ? 'rec' : ''}}"
+          wx:for="{{plans}}" wx:key="code"
+          data-code="{{item.code}}"
+          bindtap="onPickPlan">
+      <view class="plan-tag" wx:if="{{item.recommend}}">推荐</view>
+      <view class="plan-name">{{item.name}}</view>
+      <view class="plan-price">
+        <text class="plan-currency">¥</text>
+        <text class="plan-amount">{{item.priceYuan}}</text>
+        <text class="plan-period muted"> / {{item.periodLabel}}</text>
+      </view>
+      <view class="plan-feature muted" wx:for="{{item.featureList}}" wx:key="*this" wx:for-item="f">
+        · {{f}}
+      </view>
+    </view>
+  </view>
+
+  <view class="empty muted" wx:if="{{!plans.length && !loading}}">
+    暂无可用套餐
+  </view>
+
+  <!-- 支付按钮 -->
+  <button class="btn-pay {{busy || !selectedPlan ? 'disabled' : ''}}"
+          disabled="{{busy || !selectedPlan}}"
+          bindtap="onPay">
+    {{busy ? '处理中…' : (selectedPlan ? '微信支付 ' + selectedPlanPrice : '请选择套餐')}}
+  </button>
+
+  <!-- 兑换码 -->
+  <view class="redeem-card">
+    <view class="redeem-title">🎁 使用兑换码</view>
+    <view class="redeem-row">
+      <input class="redeem-input"
+             placeholder="输入兑换码（不区分大小写）"
+             value="{{redeemCode}}"
+             bindinput="onRedeemInput" />
+      <button class="redeem-btn" bindtap="onRedeem" disabled="{{busy}}">兑换</button>
+    </view>
+    <view class="redeem-tip muted">试用码：TRIAL7</view>
+  </view>
+
+  <!-- 说明 -->
+  <view class="agree-tip muted">
+    支付即代表同意《会员服务协议》。订阅自动续期可在"我的→管理订阅"中关闭。
+  </view>
+
+  <view style="height:40rpx"></view>
+</scroll-view>

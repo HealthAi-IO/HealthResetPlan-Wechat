@@ -6,7 +6,12 @@
     "pages/plan/index",
     "pages/clock/index",
     "pages/stats/index",
-    "pages/settings/index"
+    "pages/settings/index",
+    "pages/indicators/index",
+    "pages/login/index",
+    "pages/chat/index",
+    "pages/sync/index",
+    "pages/membership/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FFFFFF",
@@ -16,22 +21,20 @@
   },
   "tabBar": {
     "color": "#9CA3AF",
-    "selectedColor": "#2BBE7A",
+    "selectedColor": "#1E88E5",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/home/index", "text": "首页" },
-      { "pagePath": "pages/plan/index", "text": "计划" },
-      { "pagePath": "pages/clock/index", "text": "打卡" },
-      { "pagePath": "pages/stats/index", "text": "数据" },
-      { "pagePath": "pages/settings/index", "text": "我的" }
+      { "pagePath": "pages/home/index",     "text": "首页"   },
+      { "pagePath": "pages/plan/index",     "text": "计划"   },
+      { "pagePath": "pages/clock/index",    "text": "打卡"   },
+      { "pagePath": "pages/stats/index",    "text": "数据"   },
+      { "pagePath": "pages/settings/index", "text": "我的"   }
     ]
   },
   "permission": {
-    "scope.userInfo": { "desc": "用于显示昵称头像" },
-    "scope.bluetooth": { "desc": "连接体脂秤 / 血压计 / 手环" }
+    "scope.userInfo": { "desc": "用于显示昵称头像" }
   },
-  "requiredPrivateInfos": ["getLocation"],
   "lazyCodeLoading": "requiredComponents",
   "sitemapLocation": "sitemap.json"
 }

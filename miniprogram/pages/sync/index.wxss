@@ -1,0 +1,74 @@
+.container {
+  padding: 24rpx 28rpx 80rpx;
+  background: #F7FAF9;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+.muted { color: #9CA3AF; }
+.strong { font-weight: 700; color: #1F2937; }
+.ellipsis { max-width: 360rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 状态 */
+.status-card {
+  display: flex; align-items: center;
+  background: #fff; border-radius: 24rpx;
+  padding: 24rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.status-card.on { background: linear-gradient(135deg, #E3F2FD, #E0F7FA); }
+.status-icon { font-size: 56rpx; padding-right: 24rpx; }
+.status-title { font-size: 30rpx; font-weight: 700; color: #1F2937; }
+.status-sub { font-size: 24rpx; margin-top: 6rpx; }
+
+/* 卡 */
+.card {
+  background: #fff; border-radius: 24rpx;
+  padding: 24rpx; margin-top: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.card-title { font-size: 30rpx; font-weight: 700; color: #1F2937; }
+.card-sub { font-size: 24rpx; margin-top: 6rpx; line-height: 1.6; }
+
+.input {
+  margin-top: 20rpx; height: 80rpx;
+  background: #F3F4F6; border-radius: 16rpx;
+  padding: 0 24rpx; font-size: 28rpx;
+}
+
+.btn-row { display: flex; gap: 16rpx; margin-top: 20rpx; }
+.btn-row button {
+  flex: 1; height: 80rpx; line-height: 80rpx;
+  font-size: 28rpx; border-radius: 999rpx;
+}
+.btn-solid {
+  background: linear-gradient(135deg, #1E88E5, #00ACC1);
+  color: #fff; font-weight: 700; border: none;
+}
+.btn-ghost {
+  background: #F3F4F6; color: #374151; border: none;
+}
+
+.kv-row {
+  display: flex; justify-content: space-between;
+  padding: 16rpx 0; font-size: 26rpx; color: #374151;
+  border-top: 2rpx solid #F3F4F6;
+}
+.kv-row:first-of-type { border-top: none; }
+
+.tip {
+  margin-top: 24rpx; padding: 20rpx;
+  background: #FFF7E6; border-radius: 16rpx;
+  font-size: 22rpx; line-height: 1.7;
+  color: #6B7280;
+}
+
+.log-card {
+  background: #fff; border-radius: 24rpx;
+  padding: 20rpx 24rpx; margin-top: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.log-line {
+  padding: 10rpx 0; font-size: 22rpx;
+  border-top: 2rpx dashed #E5E7EB;
+}
+.log-t { padding-right: 12rpx; }
+.log-msg { color: #374151; }

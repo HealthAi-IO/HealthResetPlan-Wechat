@@ -1,0 +1,4 @@
+<view class="trend-wrap">
+  <canvas type="2d" id="{{canvasId}}" class="trend-canvas"></canvas>
+  <view class="empty" wx:if="{{empty}}">暂无数据</view>
+</view>

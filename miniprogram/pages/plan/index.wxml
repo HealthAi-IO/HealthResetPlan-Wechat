@@ -1,6 +1,85 @@
-<view class="container">
-  <view class="card">
-    <view class="title-md">AI 个性化计划</view>
-    <view class="muted">基于您的健康档案，调用大模型生成专属饮食 / 运动 / 用药方案。</view>
+<scroll-view scroll-y class="container">
+
+  <!-- Hero -->
+  <view class="hero">
+    <view class="hero-title">7 天健康规划</view>
+    <view class="hero-sub muted">基于健康档案生成个性化饮食 · 运动 · 测量方案</view>
+    <view class="hero-btns">
+      <button class="btn-local" bindtap="onGenerate">✨ 本地生成</button>
+      <button class="btn-ai {{aiGenerating ? 'disabled' : ''}}" bindtap="onAiGenerate" disabled="{{aiGenerating}}">
+        {{aiGenerating ? 'AI 生成中…' : '🤖 AI 智能生成 ⚜'}}
+      </button>
+    </view>
   </view>
-</view>
+
+  <!-- 筛选 -->
+  <view class="filters">
+    <view class="chip {{filter==='all'       ? 'active' : ''}}" data-filter="all"         bindtap="onFilterTap">全部</view>
+    <view class="chip {{filter==='meal'      ? 'active' : ''}}" data-filter="meal"        bindtap="onFilterTap">饮食</view>
+    <view class="chip {{filter==='exercise'  ? 'active' : ''}}" data-filter="exercise"    bindtap="onFilterTap">运动</view>
+    <view class="chip {{filter==='measurement'?'active' : ''}}" data-filter="measurement" bindtap="onFilterTap">测量</view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:if="{{isEmpty}}">
+    <view class="empty-icon">📅</view>
+    <view class="muted">暂无计划，点击上方按钮生成 7 天方案</view>
+  </view>
+
+  <!-- 每日计划 -->
+  <view class="day-card" wx:for="{{plans}}" wx:key="date">
+    <view class="day-header">
+      <view class="day-label">{{item.dateLabel}}</view>
+      <view class="day-count muted">{{item.items.length}} 条</view>
+    </view>
+
+    <block wx:for="{{item.items}}" wx:for-item="plan" wx:key="id">
+      <!-- 饮食 -->
+      <view class="plan-item meal-item" wx:if="{{plan.type === 'meal'}}">
+        <view class="plan-header-row">
+          <text class="plan-tag meal-tag">🍽 饮食计划</text>
+        </view>
+        <view class="plan-summary">{{plan.summary}}</view>
+        <view class="meals-detail" wx:if="{{plan.payload}}">
+          <view class="meal-row" wx:if="{{plan.payload.breakfast && plan.payload.breakfast.length}}">
+            <text class="meal-slot">早餐</text>
+            <text>{{plan.payload.breakfast.join(' / ')}}</text>
+          </view>
+          <view class="meal-row" wx:if="{{plan.payload.lunch && plan.payload.lunch.length}}">
+            <text class="meal-slot">午餐</text>
+            <text>{{plan.payload.lunch.join(' / ')}}</text>
+          </view>
+          <view class="meal-row" wx:if="{{plan.payload.dinner && plan.payload.dinner.length}}">
+            <text class="meal-slot">晚餐</text>
+            <text>{{plan.payload.dinner.join(' / ')}}</text>
+          </view>
+          <view class="meal-row" wx:if="{{plan.payload.snack && plan.payload.snack.length}}">
+            <text class="meal-slot">加餐</text>
+            <text>{{plan.payload.snack.join(' / ')}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 运动 -->
+      <view class="plan-item ex-item" wx:if="{{plan.type === 'exercise'}}">
+        <view class="plan-header-row">
+          <text class="plan-tag ex-tag">🏃 运动计划</text>
+          <text class="plan-intensity muted">{{plan.payload.intensity}}</text>
+        </view>
+        <view class="plan-summary">{{plan.summary}}</view>
+        <view class="plan-desc muted" wx:if="{{plan.payload.desc}}">{{plan.payload.desc}}</view>
+      </view>
+
+      <!-- 测量 -->
+      <view class="plan-item mea-item" wx:if="{{plan.type === 'measurement'}}">
+        <view class="plan-header-row">
+          <text class="plan-tag mea-tag">📊 每日测量</text>
+        </view>
+        <view class="plan-summary">{{plan.summary}}</view>
+        <view wx:for="{{plan.payload.items}}" wx:for-item="it" wx:key="*this" class="mea-item-row muted">· {{it}}</view>
+      </view>
+    </block>
+  </view>
+
+  <view style="height:40rpx"></view>
+</scroll-view>

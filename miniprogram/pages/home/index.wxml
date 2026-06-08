@@ -1,16 +1,167 @@
-<view class="container">
+<scroll-view scroll-y class="container" bindscrolltolower="onRefresh">
+
+  <!-- Hero 仪表盘 -->
   <view class="hero">
-    <view class="title-lg">让健康从今天「重启」</view>
-    <view class="muted">三高 / 肥胖人群的 AI 智能健康管理小程序</view>
+    <view class="hero-top">
+      <view class="hero-left">
+        <view class="hero-name">你好，{{nickname}}</view>
+        <view class="hero-date muted-white">{{todayLabel}}</view>
+        <view class="hero-tip muted-white" wx:if="{{!hasProfile}}">请先完善健康档案，开始个性化计划</view>
+        <view class="hero-tip muted-white" wx:else>继续保持，稳定打卡是最好的健康投资</view>
+      </view>
+      <view class="ring" bindtap="onGoClock">
+        <view class="ring-pct">{{completionPct}}%</view>
+        <view class="ring-label">完成</view>
+      </view>
+    </view>
+    <view class="clock-dots">
+      <view class="dot {{doneTypes.meal     ? 'done' : ''}}" bindtap="onGoClock"><view class="dot-icon">🍚</view><view class="dot-text">饮食</view></view>
+      <view class="dot {{doneTypes.exercise ? 'done' : ''}}" bindtap="onGoClock"><view class="dot-icon">🏃</view><view class="dot-text">运动</view></view>
+      <view class="dot {{doneTypes.medicine ? 'done' : ''}}" bindtap="onGoClock"><view class="dot-icon">💊</view><view class="dot-text">用药</view></view>
+      <view class="dot {{doneTypes.weight   ? 'done' : ''}}" bindtap="onGoClock"><view class="dot-icon">⚖️</view><view class="dot-text">称重</view></view>
+      <view class="dot go-btn" bindtap="onGoClock"><view class="dot-icon">›</view><view class="dot-text">打卡</view></view>
+    </view>
   </view>
 
-  <view class="card" wx:for="{{modules}}" wx:key="key" bindtap="onModuleTap" data-key="{{item.key}}">
-    <view class="title-md">{{item.title}}</view>
-    <view class="muted">{{item.desc}}</view>
+  <!-- 新用户数据引导 -->
+  <view class="card setup-card" wx:if="{{needsSetup}}">
+    <view class="setup-title">先填写你的健康数据</view>
+    <view class="setup-desc muted">当前还没有可用于分析的数据。完善档案和录入指标后，免费版和会员版会沿用同一份数据。</view>
+    <view class="setup-actions">
+      <button class="setup-primary" bindtap="onGoProfile">完善档案</button>
+      <button class="setup-outline" bindtap="onGoIndicators">录入指标</button>
+      <button class="setup-text" bindtap="onUseDemoData">使用测试数据</button>
+    </view>
   </view>
 
-  <view class="card sync" wx:if="{{!hasCloudSync}}" bindtap="onOpenSync">
-    <view class="title-md">🔐 开启端到端加密云同步</view>
+  <!-- 今日关键指标 -->
+  <view class="card">
+    <view class="card-header">
+      <view class="title-md">今日数据</view>
+      <view class="link" bindtap="onGoIndicators">+ 录入</view>
+    </view>
+    <view class="metrics-grid">
+      <view class="metric-tile teal">
+        <view class="metric-icon">📊</view>
+        <view class="metric-val">{{bmi}}</view>
+        <view class="metric-sub">BMI · {{bmiLevel}}</view>
+      </view>
+      <view class="metric-tile red">
+        <view class="metric-icon">❤️</view>
+        <view class="metric-val">{{latestBp}}</view>
+        <view class="metric-sub">血压 mmHg</view>
+      </view>
+      <view class="metric-tile blue">
+        <view class="metric-icon">⚖️</view>
+        <view class="metric-val">{{latestWeight}}</view>
+        <view class="metric-sub">体重</view>
+      </view>
+      <view class="metric-tile orange">
+        <view class="metric-icon">💧</view>
+        <view class="metric-val">{{latestGlucose}}</view>
+        <view class="metric-sub">血糖</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 今日计划摘要 -->
+  <view class="card">
+    <view class="card-header">
+      <view class="title-md">今日计划</view>
+      <view class="link" bindtap="onGoPlan">全部计划</view>
+    </view>
+    <block wx:if="{{hasPlan}}">
+      <view class="plan-row orange-bg" wx:if="{{todayMealPlan}}">
+        <view class="plan-icon">🍽</view>
+        <view class="plan-body">
+          <view class="plan-type">今日饮食</view>
+          <view class="plan-summary muted">{{todayMealPlan.summary}}</view>
+        </view>
+      </view>
+      <view class="plan-row green-bg" wx:if="{{todayExercisePlan}}">
+        <view class="plan-icon">🏋️</view>
+        <view class="plan-body">
+          <view class="plan-type">今日运动</view>
+          <view class="plan-summary muted">{{todayExercisePlan.summary}}</view>
+        </view>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="muted" style="margin-bottom:12rpx">暂无今日计划，点击下方生成 7 天方案</view>
+      <button class="btn-outline" bindtap="onGeneratePlan">✨ 生成 7 天计划</button>
+    </block>
+  </view>
+
+  <!-- 快捷入口 -->
+  <view class="card">
+    <view class="title-md" style="margin-bottom:16rpx">快捷入口</view>
+    <view class="quick-grid">
+      <view class="quick-item" bindtap="onGoProfile">
+        <view class="quick-icon teal-bg">🗂</view>
+        <view class="quick-label">健康档案</view>
+      </view>
+      <view class="quick-item" bindtap="onGoIndicators">
+        <view class="quick-icon blue-bg">📝</view>
+        <view class="quick-label">录入指标</view>
+      </view>
+      <view class="quick-item" bindtap="onGoIndicators">
+        <view class="quick-icon indigo-bg">📋</view>
+        <view class="quick-label">指标历史</view>
+      </view>
+      <view class="quick-item" bindtap="onGoPlan">
+        <view class="quick-icon green-bg">📅</view>
+        <view class="quick-label">7天计划</view>
+      </view>
+      <view class="quick-item" data-page="stats" bindtap="onGoPage">
+        <view class="quick-icon orange-bg">📈</view>
+        <view class="quick-label">趋势统计</view>
+      </view>
+      <view class="quick-item" bindtap="onGoChat">
+        <view class="quick-icon indigo-bg">🤖</view>
+        <view class="quick-label">AI 助理</view>
+      </view>
+      <view class="quick-item" bindtap="onGoReport">
+        <view class="quick-icon red-bg">📷</view>
+        <view class="quick-label">报告 OCR</view>
+      </view>
+      <view class="quick-item" bindtap="onGoSettings">
+        <view class="quick-icon gray-bg">👤</view>
+        <view class="quick-label">我的</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近指标 -->
+  <view class="card" wx:if="{{recentIndicators.length > 0}}">
+    <view class="card-header">
+      <view class="title-md">最近指标</view>
+      <view class="link" bindtap="onGoIndicators">全部</view>
+    </view>
+    <view class="ind-row" wx:for="{{recentIndicators}}" wx:key="id">
+      <view class="ind-badge">{{item.typeLabel}}</view>
+      <view class="ind-val">{{item.displayValue}}</view>
+      <view class="ind-time muted">{{item.timeLabel}}</view>
+    </view>
+  </view>
+
+  <!-- 今日打卡 -->
+  <view class="card" wx:if="{{todayClocks.length > 0}}">
+    <view class="card-header">
+      <view class="title-md">今日打卡</view>
+      <view class="link" bindtap="onGoClock">去打卡</view>
+    </view>
+    <view class="clock-row" wx:for="{{todayClocks}}" wx:key="id">
+      <view class="clock-label">{{item.label}}</view>
+      <view class="clock-note muted" wx:if="{{item.note}}">{{item.note}}</view>
+      <view class="clock-time muted">{{item.clockTime}}</view>
+    </view>
+  </view>
+
+  <!-- 云同步入口 -->
+  <view class="card sync-card" wx:if="{{!hasCloudSync}}" bindtap="onGoSettings">
+    <view class="title-md sync-title">🔐 开启端到端加密云同步</view>
     <view class="muted">私钥保存在您的手机本地，云端只见密文</view>
   </view>
-</view>
+
+  <view style="height:40rpx"></view>
+</scroll-view>

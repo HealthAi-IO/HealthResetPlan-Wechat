@@ -1,0 +1,70 @@
+.page {
+  display: flex; flex-direction: column;
+  height: 100vh; background: #F7FAF9;
+}
+.muted { color: #9CA3AF; }
+
+/* 顶部 */
+.usage-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 18rpx 28rpx; background: #fff;
+  font-size: 26rpx; color: #1F2937; font-weight: 600;
+  border-bottom: 2rpx solid #F3F4F6;
+}
+
+/* 消息区 */
+.msg-list {
+  flex: 1; padding: 24rpx 24rpx 16rpx;
+  box-sizing: border-box;
+}
+.welcome {
+  text-align: center; padding: 80rpx 32rpx;
+}
+.welcome-icon { font-size: 96rpx; margin-bottom: 16rpx; }
+.welcome-title { font-size: 32rpx; font-weight: 700; color: #1F2937; margin-bottom: 8rpx; }
+.welcome-sub { font-size: 24rpx; margin-bottom: 32rpx; line-height: 1.6; }
+.quick-list { display: flex; flex-direction: column; gap: 14rpx; align-items: center; }
+.quick-item {
+  background: #fff; border: 2rpx solid #BBD9F4;
+  padding: 16rpx 28rpx; border-radius: 999rpx;
+  font-size: 26rpx; color: #1E88E5; max-width: 600rpx;
+}
+
+/* 气泡 */
+.msg-row { display: flex; margin-bottom: 20rpx; }
+.msg-row.user { justify-content: flex-end; }
+.msg-row.ai   { justify-content: flex-start; }
+
+.bubble {
+  max-width: 78%; padding: 20rpx 24rpx;
+  border-radius: 24rpx; font-size: 28rpx; line-height: 1.55;
+  word-break: break-word; white-space: pre-wrap;
+}
+.bubble.user {
+  background: linear-gradient(135deg, #1E88E5, #00ACC1);
+  color: #fff; border-bottom-right-radius: 6rpx;
+}
+.bubble.ai {
+  background: #fff; color: #1F2937;
+  border: 2rpx solid #E5E7EB; border-bottom-left-radius: 6rpx;
+}
+
+/* 输入栏 */
+.input-bar {
+  display: flex; align-items: center; gap: 14rpx;
+  padding: 14rpx 24rpx;
+  background: #fff; border-top: 2rpx solid #F3F4F6;
+  padding-bottom: calc(14rpx + env(safe-area-inset-bottom));
+}
+.input {
+  flex: 1; height: 76rpx;
+  background: #F3F4F6; border-radius: 999rpx;
+  padding: 0 28rpx; font-size: 28rpx;
+}
+.send-btn {
+  height: 76rpx; line-height: 76rpx; padding: 0 32rpx;
+  background: linear-gradient(135deg, #1E88E5, #00ACC1);
+  color: #fff; font-size: 28rpx; font-weight: 700;
+  border-radius: 999rpx; border: none;
+}
+.send-btn.disabled { opacity: 0.5; }
