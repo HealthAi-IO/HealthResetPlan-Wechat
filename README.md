@@ -28,7 +28,7 @@ HealthResetPlan-Wechat/
 
 - 主密钥（UMK）不在小程序内生成 / 持久化，全部走客户端 / Web 端备份。
 - 上传到云端的健康敏感数据必须经过 AES-256-GCM 加密。
-- 蓝牙能力（体脂秤 / 血压计 / 手环）使用 `wx.openBluetoothAdapter` 系列 API。
+- 系统健康平台能力（体脂秤 / 血压计 / 手环）使用 `wx.request` 与云同步接口。
 
 ## 本地开发
 
