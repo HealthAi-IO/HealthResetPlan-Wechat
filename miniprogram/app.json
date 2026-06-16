@@ -35,6 +35,10 @@
   "permission": {
     "scope.userInfo": { "desc": "用于显示昵称头像" }
   },
+  "networkTimeout": {
+    "request": 120000,
+    "uploadFile": 120000
+  },
   "lazyCodeLoading": "requiredComponents",
   "sitemapLocation": "sitemap.json"
 }

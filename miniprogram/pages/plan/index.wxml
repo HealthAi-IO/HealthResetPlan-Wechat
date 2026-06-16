@@ -7,7 +7,7 @@
     <view class="hero-btns">
       <button class="btn-local" bindtap="onGenerate">✨ 本地生成</button>
       <button class="btn-ai {{aiGenerating ? 'disabled' : ''}}" bindtap="onAiGenerate" disabled="{{aiGenerating}}">
-        {{aiGenerating ? 'AI 生成中…' : '🤖 AI 智能生成 ⚜'}}
+        {{aiGenerating ? 'AI 生成中…' : '🤖 AI 智能生成'}}
       </button>
     </view>
   </view>
@@ -40,22 +40,10 @@
           <text class="plan-tag meal-tag">🍽 饮食计划</text>
         </view>
         <view class="plan-summary">{{plan.summary}}</view>
-        <view class="meals-detail" wx:if="{{plan.payload}}">
-          <view class="meal-row" wx:if="{{plan.payload.breakfast && plan.payload.breakfast.length}}">
-            <text class="meal-slot">早餐</text>
-            <text>{{plan.payload.breakfast.join(' / ')}}</text>
-          </view>
-          <view class="meal-row" wx:if="{{plan.payload.lunch && plan.payload.lunch.length}}">
-            <text class="meal-slot">午餐</text>
-            <text>{{plan.payload.lunch.join(' / ')}}</text>
-          </view>
-          <view class="meal-row" wx:if="{{plan.payload.dinner && plan.payload.dinner.length}}">
-            <text class="meal-slot">晚餐</text>
-            <text>{{plan.payload.dinner.join(' / ')}}</text>
-          </view>
-          <view class="meal-row" wx:if="{{plan.payload.snack && plan.payload.snack.length}}">
-            <text class="meal-slot">加餐</text>
-            <text>{{plan.payload.snack.join(' / ')}}</text>
+        <view class="meals-detail" wx:if="{{plan.mealRows && plan.mealRows.length}}">
+          <view class="meal-row" wx:for="{{plan.mealRows}}" wx:for-item="meal" wx:key="slot">
+            <text class="meal-slot">{{meal.slot}}</text>
+            <text>{{meal.text}}</text>
           </view>
         </view>
       </view>
@@ -76,7 +64,7 @@
           <text class="plan-tag mea-tag">📊 每日测量</text>
         </view>
         <view class="plan-summary">{{plan.summary}}</view>
-        <view wx:for="{{plan.payload.items}}" wx:for-item="it" wx:key="*this" class="mea-item-row muted">· {{it}}</view>
+        <view wx:for="{{plan.measureItems}}" wx:for-item="it" wx:key="*this" class="mea-item-row muted">· {{it}}</view>
       </view>
     </block>
   </view>

@@ -1,16 +1,41 @@
 {
   "miniprogramRoot": "miniprogram/",
   "projectname": "HealthResetPlan-Wechat",
-  "appid": "wxAPPID_PLACEHOLDER",
+  "appid": "wx5aad7b5385a4c190",
   "setting": {
     "es6": true,
     "enhance": true,
     "postcss": true,
     "minified": true,
     "newFeature": true,
-    "useCompilerPlugins": ["typescript"]
+    "useCompilerPlugins": [
+      "typescript"
+    ],
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
   },
   "compileType": "miniprogram",
   "libVersion": "3.5.0",
-  "description": "健康重启计划微信小程序"
+  "description": "健康重启计划微信小程序",
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "editorSetting": {}
 }

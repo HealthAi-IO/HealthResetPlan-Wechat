@@ -1,55 +1,65 @@
-﻿<view class="container">
+<view class="container">
 
-  <!-- 椤堕儴璇存槑 -->
   <view class="hero">
-    <view class="hero-title">馃摲 妫€鏌ユ姤鍛?OCR</view>
-    <view class="hero-sub muted">涓婁紶浣撴 / 琛€鍘?/ 琛€鑴傛姤鍛婂浘鐗囷紝AI 鑷姩鎶藉彇鍏抽敭鎸囨爣骞跺叆搴撱€傛姤鍛婂浘鐗囩鍒扮鍔犲瘑銆?/view>
+    <view class="hero-title">检查报告 OCR</view>
+    <view class="hero-sub muted">上传体检、血压、血脂或血糖报告图片，AI 自动抽取可导入的健康指标。</view>
   </view>
 
-  <!-- 涓婁紶鍖?-->
   <view class="upload-card">
     <view class="upload-box" bindtap="onChooseImage" wx:if="{{!image}}">
-      <view class="upload-icon">馃搸</view>
-      <view class="upload-text">鐐瑰嚮閫夋嫨鎶ュ憡鍥剧墖</view>
-      <view class="upload-hint muted">鏀寔 JPG / PNG锛屽崟寮犱笉瓒呰繃 5MB</view>
+      <view class="upload-icon">+</view>
+      <view class="upload-text">选择报告图片</view>
+      <view class="upload-hint muted">支持 JPG / PNG / WebP / GIF，单张不超过 5MB</view>
     </view>
 
     <view class="preview-wrap" wx:else>
       <image class="preview" src="{{image}}" mode="widthFix" bindtap="onPreviewImage" />
       <view class="preview-actions">
-        <button class="ghost" bindtap="onChooseImage">閲嶉€?/button>
+        <button class="ghost" bindtap="onChooseImage">重选</button>
         <button class="solid {{loading ? 'disabled' : ''}}" bindtap="onUpload" disabled="{{loading}}">
-          {{loading ? '璇嗗埆涓€? : '馃殌 寮€濮嬭瘑鍒?}}
+          {{loading ? '识别中…' : '开始识别'}}
         </button>
       </view>
     </view>
   </view>
 
-  <!-- 璇嗗埆缁撴灉 -->
+  <view class="summary-card" wx:if="{{reportSummary}}">
+    <view class="summary-title">识别摘要</view>
+    <view class="summary-text">{{reportSummary}}</view>
+    <view class="summary-meta muted">
+      <text wx:if="{{reportDate}}">{{reportDate}}</text>
+      <text wx:if="{{reportDate && reportProvider}}"> · </text>
+      <text wx:if="{{reportProvider}}">{{reportProvider}}</text>
+    </view>
+  </view>
+
   <view class="result-card" wx:if="{{result.length}}">
-    <view class="result-title">鉁?璇嗗埆鍒?{{result.length}} 椤规寚鏍?/view>
+    <view class="result-title">识别到 {{result.length}} 项可导入指标</view>
     <view class="result-row" wx:for="{{result}}" wx:key="key">
-      <view class="r-label">{{item.label}}</view>
+      <view class="r-main">
+        <view class="r-label">{{item.label}}</view>
+        <view class="r-source muted" wx:if="{{item.sourceName}}">来源：{{item.sourceName}}</view>
+        <view class="r-source muted" wx:if="{{item.referenceRange}}">参考：{{item.referenceRange}}</view>
+      </view>
       <view class="r-val">{{item.value}} <text class="muted">{{item.unit}}</text></view>
       <switch color="#1E88E5" checked="{{item.selected}}" data-idx="{{index}}" bindchange="onToggleSelect" />
     </view>
-    <button class="btn-save" bindtap="onImport">瀵煎叆閫変腑椤瑰埌鎸囨爣搴?/button>
+    <button class="btn-save" bindtap="onImport">导入选中指标</button>
   </view>
 
-  <!-- 鍘嗗彶鎶ュ憡 -->
   <view class="history-card" wx:if="{{history.length}}">
-    <view class="hist-title">鏈€杩戞姤鍛?/view>
+    <view class="hist-title">最近报告</view>
     <view class="hist-row" wx:for="{{history}}" wx:key="id">
       <image class="hist-thumb" src="{{item.thumb}}" mode="aspectFill" />
       <view class="hist-body">
         <view class="hist-name">{{item.name}}</view>
         <view class="hist-time muted">{{item.time}}</view>
       </view>
-      <view class="hist-count">{{item.count}} 椤?/view>
+      <view class="hist-count">{{item.count}} 项</view>
     </view>
   </view>
 
   <view class="tip muted">
-    馃挕 OCR 璋冪敤浜戠 AI锛圙PT-4o / Qwen-VL锛夛紝鍥剧墖涓婁紶鍓嶅湪瀹㈡埛绔姞瀵嗭紱鐧诲綍鍚庡彲浣跨敤銆傛湭鐧诲綍鍙湪鏈湴妯″紡涓嬫墜鍔ㄥ綍鍏ャ€?  </view>
+    OCR 调用云端视觉模型，识别结果仅用于辅助录入；导入前请核对数值和单位。
+  </view>
 </view>
-

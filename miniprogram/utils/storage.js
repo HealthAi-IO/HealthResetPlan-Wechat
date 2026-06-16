@@ -75,6 +75,10 @@ const reminders = {
     list.push(item);
     _set(K.REMINDERS, list);
   },
+  replaceAiPlan(items) {
+    const kept = this.getAll().filter(r => r.source !== 'ai-plan');
+    _set(K.REMINDERS, kept.concat(items));
+  },
   remove(id) { _set(K.REMINDERS, this.getAll().filter(r => r.id !== id)); }
 };
 

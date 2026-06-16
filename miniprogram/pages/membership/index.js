@@ -1,4 +1,4 @@
-const http = require('../../utils/request');
+const http = require('../../utils/http');
 const sync = require('../../utils/sync');
 
 const FEATURE_LABELS = {

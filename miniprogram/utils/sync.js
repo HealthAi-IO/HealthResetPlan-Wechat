@@ -1,27 +1,29 @@
-﻿/**
- * 绔埌绔姞瀵嗗悓姝ワ細瀹㈡埛绔姞瀵?鈫?POST /sync/push锛汫ET /sync/pull 鈫?瑙ｅ瘑銆? *
- * 鍚庣绾︽潫锛堜笌 BackendSyncService 瀵归綈锛夛細
- *   - 褰撳墠浠呮帴鍙?table = "health_indicator"
- *   - meta 闇€鍚?type / measured_at / source锛堟槑鏂囷級
- *   - 璋冪敤鏂归渶鏈変簯鍚屾浼氬憳鏉冪泭锛屽惁鍒?40301
+/**
+ * 端到端加密同步：客户端加密 -> POST /sync/push；GET /sync/pull -> 解密。
+ *
+ * 后端约束（与 BackendSyncService 对齐）：
+ *   - 当前仅接受 table = "health_indicator"
+ *   - meta 需包含 type / measured_at / source（明文）
+ *   - 调用方需有云同步会员权益，否则 40301
  */
 
-const http    = require('./request');
-const crypto  = require('./crypto');
+const http = require('./http');
+const crypto = require('./crypto');
 const storage = require('./storage');
 
 const K = {
-  MASTER_KEY:   'hrp_master_key_hex', // 涓诲瘑閽ワ紙hex 瀛楃涓诧紝浠呮湰鍦帮級
-  SYNC_QUEUE:   'hrp_sync_queue',     // 寰呮帹閫侀槦鍒?  SYNC_CURSOR:  'hrp_sync_cursor',    // 涓婃 pull 鐨?serverTime
-  DEVICE_ID:    'hrp_device_id',
+  MASTER_KEY: 'hrp_master_key_hex', // 主密钥（hex 字符串，仅本地）
+  SYNC_QUEUE: 'hrp_sync_queue', // 待推送队列
+  SYNC_CURSOR: 'hrp_sync_cursor', // 上次 pull 的 serverTime
+  DEVICE_ID: 'hrp_device_id',
   LAST_PUSH_AT: 'hrp_last_push_at'
 };
 
-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ 涓诲瘑閽ョ鐞?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// 主密钥管理
 function setMasterKeyByPassword(password) {
   const app = getApp();
   const uid = app.globalData.userId;
-  if (!uid) throw new Error('鏈櫥褰曪紝鏃犳硶娲剧敓涓诲瘑閽?);
+  if (!uid) throw new Error('未登录，无法派生主密钥');
   const key = crypto.deriveMasterKey(password, uid);
   wx.setStorageSync(K.MASTER_KEY, crypto._bytesToHex(key));
 }
@@ -41,7 +43,7 @@ function clearMasterKey() {
   wx.removeStorageSync(K.SYNC_CURSOR);
 }
 
-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ 璁惧 ID 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// 设备 ID
 function _deviceId() {
   let id = wx.getStorageSync(K.DEVICE_ID);
   if (!id) {
@@ -51,9 +53,10 @@ function _deviceId() {
   return id;
 }
 
-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ 鍏ラ槦 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// 入队
 /**
- * 鎶婁竴鏉?indicator 鎺ㄥ叆鍚屾闃熷垪銆? * @param {object} entry { id, type, payload, measuredAt }
+ * 把一条 indicator 推入同步队列。
+ * @param {object} entry { id, type, payload, measuredAt }
  */
 function enqueueIndicator(entry) {
   const queue = wx.getStorageSync(K.SYNC_QUEUE) || [];
@@ -98,16 +101,16 @@ function enqueueAllIndicators() {
 
 async function pushLocalIndicatorsIfReady() {
   const queued = enqueueAllIndicators();
-  if (!_canSync()) return { skipped: true, queued, reason: '鏈櫥褰曟垨鏈缃富瀵嗛挜' };
+  if (!_canSync()) return { skipped: true, queued, reason: '未登录或未设置主密钥' };
   const pushed = await pushNow();
   return { queued, pushed };
 }
 
-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ 鎺ㄩ€?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// 推送
 async function pushNow() {
-  if (!_canSync()) return { skipped: true, reason: '鏈櫥褰曟垨鏈缃富瀵嗛挜' };
+  if (!_canSync()) return { skipped: true, reason: '未登录或未设置主密钥' };
   const queue = wx.getStorageSync(K.SYNC_QUEUE) || [];
-  if (!queue.length) return { skipped: true, reason: '闃熷垪涓虹┖' };
+  if (!queue.length) return { skipped: true, reason: '队列为空' };
 
   const key = getMasterKey();
   const items = queue.map(q => {
@@ -127,16 +130,17 @@ async function pushNow() {
 
   try {
     const r = await http.post('/sync/push', { deviceId: _deviceId(), items });
-    // 鎺ㄩ€佹垚鍔熷悗娓呯┖宸插叆浜戠殑鏉＄洰
+    // 推送成功后清空已入云的条目
     wx.setStorageSync(K.SYNC_QUEUE, []);
     wx.setStorageSync(K.LAST_PUSH_AT, Date.now());
     return { ok: true, accepted: r.accepted, serverTime: r.serverTime };
   } catch (err) {
-    // 40301: 娌″紑浼氬憳锛涘叾浠栭敊璇繚鐣欓槦鍒?    return { ok: false, error: err };
+    // 40301: 没开会员；其他错误保留队列
+    return { ok: false, error: err };
   }
 }
 
-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ 鎷夊彇 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// 拉取
 async function pullNow() {
   if (!_canSync()) return { skipped: true };
   const cursor = wx.getStorageSync(K.SYNC_CURSOR) || 0;
@@ -162,7 +166,7 @@ async function pullNow() {
       wx.setStorageSync('hrp_indicators', existing.slice(0, 500));
       merged++;
     } catch (e) {
-      console.warn('[sync.pull] decrypt 澶辫触:', it.clientId, e);
+      console.warn('[sync.pull] decrypt 失败:', it.clientId, e);
     }
   }
 
@@ -175,15 +179,15 @@ function _canSync() {
   return app.isLoggedIn() && hasMasterKey();
 }
 
-// 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ 鐘舵€佹憳瑕?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// 状态摘要
 function status() {
   return {
-    loggedIn:     !!getApp().isLoggedIn(),
-    hasKey:       hasMasterKey(),
-    queueLen:     (wx.getStorageSync(K.SYNC_QUEUE) || []).length,
-    cursor:       wx.getStorageSync(K.SYNC_CURSOR) || 0,
-    lastPushAt:   wx.getStorageSync(K.LAST_PUSH_AT) || 0,
-    deviceId:     _deviceId()
+    loggedIn: !!getApp().isLoggedIn(),
+    hasKey: hasMasterKey(),
+    queueLen: (wx.getStorageSync(K.SYNC_QUEUE) || []).length,
+    cursor: wx.getStorageSync(K.SYNC_CURSOR) || 0,
+    lastPushAt: wx.getStorageSync(K.LAST_PUSH_AT) || 0,
+    deviceId: _deviceId()
   };
 }
 
@@ -198,4 +202,3 @@ module.exports = {
   pullNow,
   status
 };
-

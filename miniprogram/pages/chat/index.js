@@ -1,4 +1,4 @@
-const http = require('../../utils/request');
+const http = require('../../utils/http');
 const storage = require('../../utils/storage');
 
 const QUICK_QUESTIONS = [
@@ -70,11 +70,19 @@ Page({
     try {
       const profile = storage.profile.get() || {};
       const recent = storage.indicators.getAll().slice(0, 5);
+      const history = this.data.messages
+        .filter(m => !m.streaming)
+        .slice(-10)
+        .map(m => ({
+          role: m.role === 'ai' ? 'assistant' : 'user',
+          content: m.content
+        }));
       const r = await http.post('/ai/chat', {
-        message: text,
-        context: { profile, recent }
+        provider: 'doubao',
+        messages: history,
+        profileSummary: _profileSummary(profile, recent)
       });
-      const reply = (r && r.reply) || (r && r.content) || '抱歉，未能获取回答';
+      const reply = (r && r.content) || (r && r.reply) || '抱歉，未能获取回答';
       this._updateAiMsg(aiId, reply, false);
       this._loadUsage();
     } catch (err) {
@@ -92,3 +100,19 @@ Page({
     this.setData({ messages, anchor: id });
   }
 });
+
+function _profileSummary(profile, recent) {
+  const parts = [];
+  if (profile.nickname) parts.push(`昵称：${profile.nickname}`);
+  if (profile.gender) parts.push(`性别：${profile.gender}`);
+  if (profile.age) parts.push(`年龄：${profile.age}`);
+  if (profile.heightCm && profile.weightKg) parts.push(`身高体重：${profile.heightCm}cm/${profile.weightKg}kg`);
+  if (profile.goal) parts.push(`目标：${profile.goal}`);
+  if (profile.medicalHistory) parts.push(`健康史：${profile.medicalHistory}`);
+  if (profile.medicines) parts.push(`用药：${profile.medicines}`);
+  if (recent && recent.length) {
+    const text = recent.map(item => `${item.type}:${JSON.stringify(item.payload || {})}`).join('；');
+    parts.push(`最近指标：${text}`);
+  }
+  return parts.join('\n');
+}

@@ -1,5 +1,6 @@
 const storage = require('../../utils/storage');
-const http = require('../../utils/request');
+const http = require('../../utils/http');
+const sync = require('../../utils/sync');
 
 // 指标 key → 录入类型 / 字段映射
 const FIELD_MAP = {
@@ -21,6 +22,9 @@ Page({
   data: {
     image: '', loading: false,
     result: [],     // {key,label,value,unit,selected}
+    reportDate: '',
+    reportSummary: '',
+    reportProvider: '',
     history: []
   },
 
@@ -63,66 +67,64 @@ Page({
     wx.showLoading({ title: 'AI 识别中…', mask: true });
 
     try {
-      // 实际上传报告并识别（后端接口 /report/ocr，与现有 modules/report 模块对接）
-      const uploadRes = await this._uploadFile(this.data.image, '/report/ocr');
-      const data = (typeof uploadRes === 'string') ? JSON.parse(uploadRes) : uploadRes;
-      const indicators = (data && data.data && data.data.indicators) || data.indicators || {};
-      const result = this._mapResult(indicators);
+      const data = await http.upload('/reports/analyze', this.data.image);
+      const result = this._mapResult(data);
 
       if (!result.length) {
-        wx.showToast({ title: '未识别到指标，可改为手动录入', icon: 'none' });
+        const count = data && Array.isArray(data.indicators) ? data.indicators.length : 0;
+        wx.showToast({ title: count ? '已识别报告，暂无可自动导入项' : '未识别到指标，可改为手动录入', icon: 'none' });
       } else {
-        this._saveHistory(this.data.image, result);
+        this._saveHistory(this.data.image, data, result);
       }
-      this.setData({ result });
+      this.setData({
+        result,
+        reportDate: data.reportDate || '',
+        reportSummary: data.summary || '',
+        reportProvider: data.provider || ''
+      });
     } catch (err) {
       console.error('[report.ocr]', err);
-      // 失败时给出 mock 数据，便于无后端时也能完成流程演示
-      const mock = this._mockResult();
-      this.setData({ result: mock });
-      wx.showToast({ title: '在线识别失败，展示示例数据', icon: 'none' });
+      wx.showToast({ title: err.message || '在线识别失败，请稍后重试', icon: 'none' });
     } finally {
       this.setData({ loading: false });
       wx.hideLoading();
     }
   },
 
-  _uploadFile(filePath, path) {
-    const app = getApp();
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: app.globalData.baseUrl + path,
-        filePath, name: 'file',
-        header: {
-          Authorization: app.globalData.accessToken ? `Bearer ${app.globalData.accessToken}` : '',
-          'X-Platform': 'wechat'
-        },
-        success: r => (r.statusCode === 200 ? resolve(r.data) : reject(r)),
-        fail: reject
-      });
-    });
-  },
+  _mapResult(data) {
+    if (!data) return [];
 
-  _mapResult(map) {
-    return Object.entries(map)
-      .filter(([k]) => FIELD_MAP[k])
-      .map(([k, v]) => ({
-        key: k,
-        label: FIELD_MAP[k].label,
-        value: v,
-        unit: FIELD_MAP[k].unit,
+    if (!Array.isArray(data.indicators) && data.indicators && typeof data.indicators === 'object') {
+      return Object.entries(data.indicators)
+        .filter(([k]) => FIELD_MAP[k])
+        .map(([k, v]) => ({
+          key: k,
+          label: FIELD_MAP[k].label,
+          value: v,
+          unit: FIELD_MAP[k].unit,
+          sourceName: FIELD_MAP[k].label,
+          selected: true
+        }));
+    }
+
+    const found = {};
+    (data.indicators || []).forEach(ind => {
+      const key = _inferFieldKey(ind.name || '');
+      const value = _firstNumber(ind.value || '');
+      if (!key || value === null || found[key]) return;
+      found[key] = {
+        key,
+        label: FIELD_MAP[key].label,
+        value,
+        unit: ind.unit || FIELD_MAP[key].unit,
+        sourceName: ind.name || FIELD_MAP[key].label,
+        referenceRange: ind.referenceRange || '',
+        status: ind.status || 'unknown',
         selected: true
-      }));
-  },
+      };
+    });
 
-  _mockResult() {
-    return [
-      { key: 'systolic',    label: '收缩压',   value: 132, unit: 'mmHg',   selected: true },
-      { key: 'diastolic',   label: '舒张压',   value: 84,  unit: 'mmHg',   selected: true },
-      { key: 'glucoseMmol', label: '空腹血糖', value: 5.6, unit: 'mmol/L', selected: true },
-      { key: 'tc',          label: '总胆固醇', value: 5.2, unit: 'mmol/L', selected: true },
-      { key: 'ldl',         label: 'LDL',      value: 3.4, unit: 'mmol/L', selected: true }
-    ];
+    return Object.keys(FIELD_MAP).filter(k => found[k]).map(k => found[k]);
   },
 
   onToggleSelect(e) {
@@ -146,24 +148,28 @@ Page({
       byType[m.type][m.payloadKey] = Number(r.value);
     });
 
+    const measuredAt = this._reportMeasuredAt();
     Object.entries(byType).forEach(([type, payload]) => {
-      storage.indicators.add({ type, payload });
+      if (this.data.reportSummary) payload.summary = this.data.reportSummary;
+      const entry = storage.indicators.add({ type, payload, measuredAt, source: 'report' });
+      try { sync.enqueueIndicator(entry); } catch (e) {}
     });
 
     wx.showToast({ title: `已导入 ${sel.length} 项`, icon: 'success' });
-    this.setData({ image: '', result: [] });
+    this.setData({ image: '', result: [], reportDate: '', reportSummary: '', reportProvider: '' });
     this._loadHistory();
   },
 
-  _saveHistory(thumb, indicators) {
+  _saveHistory(thumb, data, indicators) {
     try {
       const list = wx.getStorageSync('hrp_reports') || [];
       list.unshift({
         id: Date.now(),
         thumb,
-        name: '检查报告',
-        time: this._fmtTime(new Date()),
-        count: indicators.length
+        name: data.summary || '检查报告',
+        time: data.reportDate || this._fmtTime(new Date()),
+        count: indicators.length,
+        provider: data.provider || ''
       });
       wx.setStorageSync('hrp_reports', list.slice(0, 20));
     } catch (e) {}
@@ -176,5 +182,46 @@ Page({
 
   _fmtTime(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  },
+
+  _reportMeasuredAt() {
+    const s = this.data.reportDate;
+    if (!s || s === 'null') return new Date().toISOString();
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
   }
 });
+
+function _inferFieldKey(name) {
+  const n = _normalizeName(name);
+  if (_containsAny(n, ['收缩压', '高压', 'systolic', 'sbp'])) return 'systolic';
+  if (_containsAny(n, ['舒张压', '低压', 'diastolic', 'dbp'])) return 'diastolic';
+  if (_containsAny(n, ['心率', '脉搏', 'heartrate', 'pulse'])) return 'heartRate';
+  if (_containsAny(n, ['体重', 'weight'])) return 'weightKg';
+  if (_containsAny(n, ['腰围', 'waist'])) return 'waistCm';
+  if (_containsAny(n, ['体脂', 'bodyfat'])) return 'bodyFatPct';
+  if (_containsAny(n, ['血氧', 'spo2', '氧饱和'])) return 'spo2Pct';
+  if (_containsAny(n, ['血糖', '葡萄糖', 'glucose', 'glu', 'fpg']) && n.indexOf('尿') < 0) return 'glucoseMmol';
+  if (_containsAny(n, ['甘油三酯', 'triglyceride', 'tg'])) return 'tg';
+  if (_containsAny(n, ['低密度脂蛋白', 'ldlc', 'ldl'])) return 'ldl';
+  if (_containsAny(n, ['高密度脂蛋白', 'hdlc', 'hdl'])) return 'hdl';
+  if (_containsAny(n, ['总胆固醇', 'totalcholesterol', 'cholesterol', 'tc'])) return 'tc';
+  return '';
+}
+
+function _normalizeName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[\s_\-()/（）:：]/g, '');
+}
+
+function _containsAny(value, keywords) {
+  return keywords.some(keyword => value.indexOf(_normalizeName(keyword)) >= 0);
+}
+
+function _firstNumber(value) {
+  const match = String(value || '').match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const n = Number(match[0]);
+  return Number.isFinite(n) ? n : null;
+}

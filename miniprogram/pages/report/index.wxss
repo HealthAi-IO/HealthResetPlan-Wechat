@@ -19,7 +19,15 @@
   border: 4rpx dashed #BBD9F4; border-radius: 20rpx;
   padding: 80rpx 0; text-align: center;
 }
-.upload-icon { font-size: 70rpx; margin-bottom: 12rpx; }
+.upload-icon {
+  width: 72rpx; height: 72rpx; line-height: 68rpx;
+  margin: 0 auto 12rpx;
+  border-radius: 50%;
+  border: 4rpx solid #BBD9F4;
+  color: #1E88E5;
+  font-size: 56rpx;
+  font-weight: 300;
+}
 .upload-text { font-size: 30rpx; color: #1E88E5; font-weight: 600; }
 .upload-hint { font-size: 22rpx; margin-top: 8rpx; }
 
@@ -45,6 +53,15 @@
 .solid.disabled { opacity: 0.6; }
 
 /* 结果 */
+.summary-card {
+  background: #fff; border-radius: 24rpx;
+  padding: 24rpx; margin-top: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+.summary-title { font-size: 28rpx; font-weight: 700; color: #1F2937; }
+.summary-text { margin-top: 10rpx; font-size: 26rpx; color: #374151; line-height: 1.6; }
+.summary-meta { margin-top: 8rpx; font-size: 22rpx; }
+
 .result-card {
   background: #fff; border-radius: 24rpx;
   padding: 24rpx; margin-top: 24rpx;
@@ -55,7 +72,9 @@
   display: flex; align-items: center;
   padding: 18rpx 0; border-top: 2rpx solid #F3F4F6;
 }
-.r-label { width: 200rpx; font-size: 28rpx; color: #374151; }
+.r-main { flex: 1; min-width: 0; padding-right: 16rpx; }
+.r-label { font-size: 28rpx; color: #374151; font-weight: 600; }
+.r-source { font-size: 21rpx; margin-top: 4rpx; line-height: 1.4; }
 .r-val { flex: 1; font-size: 30rpx; font-weight: 700; color: #1E88E5; }
 
 .btn-save {

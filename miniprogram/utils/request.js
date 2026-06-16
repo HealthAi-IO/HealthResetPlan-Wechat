@@ -1,8 +1,9 @@
 /**
- * 统一 HTTP 请求封装：自动注入 JWT、设备 ID、UA。
+ * 统一 HTTP 请求封装：自动注入 JWT、平台信息，并统一解包 { code, message, data }。
  */
 const app = getApp();
 const DEV_FALLBACK_BASE_URL = 'http://127.0.0.1:8080/api/v1';
+let redirectingToLogin = false;
 
 function parseBody(body) {
   if (typeof body !== 'string') return body;
@@ -25,6 +26,28 @@ function normalizeError(res, fallbackMessage) {
   };
 }
 
+function isAuthExpired(res, body) {
+  const statusCode = res && res.statusCode;
+  if (statusCode === 401) return true;
+  if (statusCode === 403 && (!body || typeof body !== 'object' || !body.code)) return true;
+  return false;
+}
+
+function handleAuthExpired() {
+  app.clearAuth();
+  if (redirectingToLogin) return;
+  redirectingToLogin = true;
+
+  wx.showToast({ title: '登录已过期，请重新登录', icon: 'none' });
+  setTimeout(() => {
+    redirectingToLogin = false;
+    const pages = getCurrentPages();
+    const current = pages.length ? pages[pages.length - 1].route : '';
+    if (current === 'pages/login/index') return;
+    wx.navigateTo({ url: '/pages/login/index' });
+  }, 500);
+}
+
 function normalizeFail(err) {
   const errMsg = err && err.errMsg ? err.errMsg : '';
   if (errMsg.indexOf('url not in domain list') >= 0 || errMsg.indexOf('不在以下 request 合法域名列表中') >= 0) {
@@ -40,8 +63,7 @@ function shouldRetryWithLocalhost(resOrErr) {
   const baseUrl = app.globalData.baseUrl || '';
   if (baseUrl.indexOf('127.0.0.1') >= 0 || baseUrl.indexOf('localhost') >= 0) return false;
   const statusCode = resOrErr && resOrErr.statusCode;
-  const errMsg = resOrErr && resOrErr.errMsg ? resOrErr.errMsg : '';
-  return !statusCode || statusCode === 404 || statusCode >= 500 || errMsg.indexOf('fail') >= 0;
+  return statusCode === 404 || statusCode >= 500;
 }
 
 function request(method, path, data) {
@@ -54,6 +76,7 @@ function doRequest(method, baseUrl, path, data, allowLocalRetry) {
       url: baseUrl + path,
       method,
       data,
+      timeout: requestTimeout(path),
       header: {
         'content-type': 'application/json',
         Authorization: app.globalData.accessToken ? `Bearer ${app.globalData.accessToken}` : '',
@@ -65,6 +88,11 @@ function doRequest(method, baseUrl, path, data, allowLocalRetry) {
         if (res.statusCode === 200 && body && body.code === 0) {
           resolve(body.data);
         } else {
+          if (isAuthExpired(res, body)) {
+            handleAuthExpired();
+            reject(normalizeError({ ...res, data: body }, '登录已过期，请重新登录'));
+            return;
+          }
           console.warn('[http]', method, path, res.statusCode, body);
           if (allowLocalRetry && shouldRetryWithLocalhost(res)) {
             doRequest(method, DEV_FALLBACK_BASE_URL, path, data, false).then(resolve).catch(reject);
@@ -85,37 +113,61 @@ function doRequest(method, baseUrl, path, data, allowLocalRetry) {
   });
 }
 
+function uploadTo(baseUrl, path, filePath, name, formData, allowLocalRetry) {
+  return new Promise((resolve, reject) => {
+    wx.uploadFile({
+      url: baseUrl + path,
+      filePath,
+      name,
+      formData,
+      timeout: requestTimeout(path),
+      header: {
+        Authorization: app.globalData.accessToken ? `Bearer ${app.globalData.accessToken}` : '',
+        'X-Platform': 'wechat',
+        'X-App-Version': '0.1.0'
+      },
+      success: res => {
+        const body = parseBody(res.data);
+        if (res.statusCode === 200 && body && body.code === 0) {
+          resolve(body.data);
+        } else {
+          if (isAuthExpired(res, body)) {
+            handleAuthExpired();
+            reject(normalizeError({ ...res, data: body }, '登录已过期，请重新登录'));
+            return;
+          }
+          console.warn('[upload]', path, res.statusCode, body);
+          if (allowLocalRetry && shouldRetryWithLocalhost(res)) {
+            uploadTo(DEV_FALLBACK_BASE_URL, path, filePath, name, formData, false).then(resolve).catch(reject);
+            return;
+          }
+          reject(normalizeError({ ...res, data: body }, `上传失败(${res.statusCode})`));
+        }
+      },
+      fail: err => {
+        console.warn('[upload.fail]', path, err);
+        if (allowLocalRetry && shouldRetryWithLocalhost(err)) {
+          uploadTo(DEV_FALLBACK_BASE_URL, path, filePath, name, formData, false).then(resolve).catch(reject);
+          return;
+        }
+        reject(normalizeFail(err));
+      }
+    });
+  });
+}
+
 module.exports = {
   get: (path, data) => request('GET', path, data),
   post: (path, data) => request('POST', path, data),
   put: (path, data) => request('PUT', path, data),
   del: (path, data) => request('DELETE', path, data),
   upload(path, filePath, name = 'file', formData = {}) {
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: app.globalData.baseUrl + path,
-        filePath,
-        name,
-        formData,
-        header: {
-          Authorization: app.globalData.accessToken ? `Bearer ${app.globalData.accessToken}` : '',
-          'X-Platform': 'wechat',
-          'X-App-Version': '0.1.0'
-        },
-        success: res => {
-          const body = parseBody(res.data);
-          if (res.statusCode === 200 && body && body.code === 0) {
-            resolve(body.data);
-          } else {
-            console.warn('[upload]', path, res.statusCode, body);
-            reject(normalizeError({ ...res, data: body }, `上传失败(${res.statusCode})`));
-          }
-        },
-        fail: err => {
-          console.warn('[upload.fail]', path, err);
-          reject(normalizeFail(err));
-        }
-      });
-    });
+    return uploadTo(app.globalData.baseUrl, path, filePath, name, formData, true);
   }
 };
+
+function requestTimeout(path) {
+  return path.indexOf('/ai/') >= 0 || path.indexOf('/reports/analyze') >= 0
+    ? 120000
+    : 15000;
+}

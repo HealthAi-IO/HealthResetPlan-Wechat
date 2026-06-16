@@ -1,4 +1,4 @@
-const http = require('../../utils/request');
+const http = require('../../utils/http');
 const storage = require('../../utils/storage');
 const sync = require('../../utils/sync');
 
