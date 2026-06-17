@@ -2,7 +2,6 @@
  * 统一 HTTP 请求封装：自动注入 JWT、平台信息，并统一解包 { code, message, data }。
  */
 const app = getApp();
-const DEV_FALLBACK_BASE_URL = 'http://127.0.0.1:8080/api/v1';
 let redirectingToLogin = false;
 
 function parseBody(body) {
@@ -59,18 +58,11 @@ function normalizeFail(err) {
   return { code: -1, message: errMsg || '网络异常，请稍后重试' };
 }
 
-function shouldRetryWithLocalhost(resOrErr) {
-  const baseUrl = app.globalData.baseUrl || '';
-  if (baseUrl.indexOf('127.0.0.1') >= 0 || baseUrl.indexOf('localhost') >= 0) return false;
-  const statusCode = resOrErr && resOrErr.statusCode;
-  return statusCode === 404 || statusCode >= 500;
+function request(method, path, data, extraHeaders = {}) {
+  return doRequest(method, app.globalData.baseUrl, path, data, extraHeaders);
 }
 
-function request(method, path, data) {
-  return doRequest(method, app.globalData.baseUrl, path, data, true);
-}
-
-function doRequest(method, baseUrl, path, data, allowLocalRetry) {
+function doRequest(method, baseUrl, path, data, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     wx.request({
       url: baseUrl + path,
@@ -81,7 +73,8 @@ function doRequest(method, baseUrl, path, data, allowLocalRetry) {
         'content-type': 'application/json',
         Authorization: app.globalData.accessToken ? `Bearer ${app.globalData.accessToken}` : '',
         'X-Platform': 'wechat',
-        'X-App-Version': '0.1.0'
+        'X-App-Version': app.globalData.appVersion || '0.2.0',
+        ...extraHeaders
       },
       success: res => {
         const body = parseBody(res.data);
@@ -94,26 +87,18 @@ function doRequest(method, baseUrl, path, data, allowLocalRetry) {
             return;
           }
           console.warn('[http]', method, path, res.statusCode, body);
-          if (allowLocalRetry && shouldRetryWithLocalhost(res)) {
-            doRequest(method, DEV_FALLBACK_BASE_URL, path, data, false).then(resolve).catch(reject);
-            return;
-          }
           reject(normalizeError({ ...res, data: body }, `请求失败(${res.statusCode})`));
         }
       },
       fail: err => {
         console.warn('[http.fail]', method, path, err);
-        if (allowLocalRetry && shouldRetryWithLocalhost(err)) {
-          doRequest(method, DEV_FALLBACK_BASE_URL, path, data, false).then(resolve).catch(reject);
-          return;
-        }
         reject(normalizeFail(err));
       }
     });
   });
 }
 
-function uploadTo(baseUrl, path, filePath, name, formData, allowLocalRetry) {
+function uploadTo(baseUrl, path, filePath, name, formData) {
   return new Promise((resolve, reject) => {
     wx.uploadFile({
       url: baseUrl + path,
@@ -124,7 +109,7 @@ function uploadTo(baseUrl, path, filePath, name, formData, allowLocalRetry) {
       header: {
         Authorization: app.globalData.accessToken ? `Bearer ${app.globalData.accessToken}` : '',
         'X-Platform': 'wechat',
-        'X-App-Version': '0.1.0'
+        'X-App-Version': app.globalData.appVersion || '0.2.0'
       },
       success: res => {
         const body = parseBody(res.data);
@@ -137,19 +122,11 @@ function uploadTo(baseUrl, path, filePath, name, formData, allowLocalRetry) {
             return;
           }
           console.warn('[upload]', path, res.statusCode, body);
-          if (allowLocalRetry && shouldRetryWithLocalhost(res)) {
-            uploadTo(DEV_FALLBACK_BASE_URL, path, filePath, name, formData, false).then(resolve).catch(reject);
-            return;
-          }
           reject(normalizeError({ ...res, data: body }, `上传失败(${res.statusCode})`));
         }
       },
       fail: err => {
         console.warn('[upload.fail]', path, err);
-        if (allowLocalRetry && shouldRetryWithLocalhost(err)) {
-          uploadTo(DEV_FALLBACK_BASE_URL, path, filePath, name, formData, false).then(resolve).catch(reject);
-          return;
-        }
         reject(normalizeFail(err));
       }
     });
@@ -157,12 +134,12 @@ function uploadTo(baseUrl, path, filePath, name, formData, allowLocalRetry) {
 }
 
 module.exports = {
-  get: (path, data) => request('GET', path, data),
-  post: (path, data) => request('POST', path, data),
-  put: (path, data) => request('PUT', path, data),
-  del: (path, data) => request('DELETE', path, data),
+  get: (path, data, headers) => request('GET', path, data, headers),
+  post: (path, data, headers) => request('POST', path, data, headers),
+  put: (path, data, headers) => request('PUT', path, data, headers),
+  del: (path, data, headers) => request('DELETE', path, data, headers),
   upload(path, filePath, name = 'file', formData = {}) {
-    return uploadTo(app.globalData.baseUrl, path, filePath, name, formData, true);
+    return uploadTo(app.globalData.baseUrl, path, filePath, name, formData);
   }
 };
 

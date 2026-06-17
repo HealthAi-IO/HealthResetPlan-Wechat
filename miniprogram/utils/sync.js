@@ -1,10 +1,12 @@
 /**
- * 端到端加密同步：客户端加密 -> POST /sync/push；GET /sync/pull -> 解密。
+ * App-compatible encrypted cloud sync for the mini program.
  *
- * 后端约束（与 BackendSyncService 对齐）：
- *   - 当前仅接受 table = "health_indicator"
- *   - meta 需包含 type / measured_at / source（明文）
- *   - 调用方需有云同步会员权益，否则 40301
+ * The Flutter app and the mini program now share the same UMK model:
+ * - restore the 32-byte UMK from the app's 24-word BIP39 mnemonic
+ * - encrypt every sync payload as AES-256-GCM with empty AAD
+ * - send the same public key fingerprint header/body field
+ *
+ * The server stores generic sync_record rows and cannot decrypt payloads.
  */
 
 const http = require('./http');
@@ -12,25 +14,54 @@ const crypto = require('./crypto');
 const storage = require('./storage');
 
 const K = {
-  MASTER_KEY: 'hrp_master_key_hex', // 主密钥（hex 字符串，仅本地）
-  SYNC_QUEUE: 'hrp_sync_queue', // 待推送队列
-  SYNC_CURSOR: 'hrp_sync_cursor', // 上次 pull 的 serverTime
+  MASTER_KEY: 'hrp_master_key_hex',
+  SYNC_QUEUE: 'hrp_sync_queue',
+  SYNC_CURSOR: 'hrp_sync_cursor',
   DEVICE_ID: 'hrp_device_id',
-  LAST_PUSH_AT: 'hrp_last_push_at'
+  LAST_PUSH_AT: 'hrp_last_push_at',
+  LAST_PULL_AT: 'hrp_last_pull_at',
+  LAST_KEY_FINGERPRINT: 'hrp_last_key_fingerprint'
 };
 
-// 主密钥管理
-function setMasterKeyByPassword(password) {
-  const app = getApp();
-  const uid = app.globalData.userId;
-  if (!uid) throw new Error('未登录，无法派生主密钥');
-  const key = crypto.deriveMasterKey(password, uid);
-  wx.setStorageSync(K.MASTER_KEY, crypto._bytesToHex(key));
+const TABLES = [
+  'user_profile',
+  'health_indicator',
+  'plan',
+  'clock_record',
+  'reminder',
+  'health_report'
+];
+
+const STORAGE_KEYS = {
+  profile: 'hrp_profile',
+  indicators: 'hrp_indicators',
+  plans: 'hrp_plans',
+  clock: 'hrp_clock_records',
+  reminders: 'hrp_reminders'
+};
+
+function setMasterKeyFromMnemonic(mnemonic) {
+  const key = crypto.masterKeyFromMnemonic(normalizeMnemonic(mnemonic));
+  _writeMasterKey(key);
+}
+
+async function generateMasterKey() {
+  const key = await crypto.generateMasterKey();
+  _writeMasterKey(key);
+  return {
+    mnemonic: crypto.exportMnemonic(key),
+    fingerprint: crypto.publicFingerprint(key),
+  };
 }
 
 function getMasterKey() {
   const hex = wx.getStorageSync(K.MASTER_KEY);
   return hex ? crypto._hexToBytes(hex) : null;
+}
+
+function keyFingerprint() {
+  const key = getMasterKey();
+  return key ? crypto.publicFingerprint(key) : '';
 }
 
 function hasMasterKey() {
@@ -41,9 +72,9 @@ function clearMasterKey() {
   wx.removeStorageSync(K.MASTER_KEY);
   wx.removeStorageSync(K.SYNC_QUEUE);
   wx.removeStorageSync(K.SYNC_CURSOR);
+  wx.removeStorageSync(K.LAST_KEY_FINGERPRINT);
 }
 
-// 设备 ID
 function _deviceId() {
   let id = wx.getStorageSync(K.DEVICE_ID);
   if (!id) {
@@ -53,125 +84,594 @@ function _deviceId() {
   return id;
 }
 
-// 入队
-/**
- * 把一条 indicator 推入同步队列。
- * @param {object} entry { id, type, payload, measuredAt }
- */
 function enqueueIndicator(entry) {
-  const queue = wx.getStorageSync(K.SYNC_QUEUE) || [];
-  queue.push({
+  enqueueItem(_indicatorToSyncItem(entry));
+}
+
+function enqueueIndicatorDelete(clientId) {
+  if (clientId === undefined || clientId === null || clientId === '') return;
+  enqueueItem({
     table: 'health_indicator',
-    clientId: String(entry.id),
+    clientId: String(clientId),
     version: Date.now(),
     clientUpdatedAt: Date.now(),
-    plain: entry.payload,
-    meta: {
-      type: entry.type,
-      measured_at: new Date(entry.measuredAt).getTime(),
-      source: 'wxmp'
-    }
+    deleted: true,
+    plain: { deleted: true },
+    meta: { deleted: true }
   });
+}
+
+function enqueueItem(item) {
+  if (!item || !item.table || !item.clientId) return;
+  const queue = wx.getStorageSync(K.SYNC_QUEUE) || [];
+  queue.push(item);
   wx.setStorageSync(K.SYNC_QUEUE, queue);
 }
 
 function enqueueAllIndicators() {
-  const existing = wx.getStorageSync(K.SYNC_QUEUE) || [];
-  const queuedIds = new Set(existing.map(q => String(q.clientId)));
-  const queue = existing.slice();
+  const before = wx.getStorageSync(K.SYNC_QUEUE) || [];
+  const next = before.slice();
+  const seen = new Set(next.map(q => `${q.table}:${q.clientId}`));
   storage.indicators.getAll().forEach(entry => {
-    const id = String(entry.id);
-    if (queuedIds.has(id)) return;
-    queue.push({
-      table: 'health_indicator',
-      clientId: id,
-      version: Date.now(),
-      clientUpdatedAt: Date.now(),
-      plain: entry.payload || {},
-      meta: {
-        type: entry.type,
-        measured_at: new Date(entry.measuredAt).getTime(),
-        source: entry.source || 'wxmp'
-      }
-    });
+    const item = _indicatorToSyncItem(entry);
+    const key = `${item.table}:${item.clientId}`;
+    if (!seen.has(key)) {
+      next.push(item);
+      seen.add(key);
+    }
   });
-  wx.setStorageSync(K.SYNC_QUEUE, queue);
-  return queue.length - existing.length;
+  wx.setStorageSync(K.SYNC_QUEUE, next);
+  return next.length - before.length;
 }
 
 async function pushLocalIndicatorsIfReady() {
-  const queued = enqueueAllIndicators();
-  if (!_canSync()) return { skipped: true, queued, reason: '未登录或未设置主密钥' };
-  const pushed = await pushNow();
-  return { queued, pushed };
+  return pushNow();
 }
 
-// 推送
 async function pushNow() {
-  if (!_canSync()) return { skipped: true, reason: '未登录或未设置主密钥' };
-  const queue = wx.getStorageSync(K.SYNC_QUEUE) || [];
-  if (!queue.length) return { skipped: true, reason: '队列为空' };
+  if (!_canSync()) return { skipped: true, reason: '请先登录并恢复 APP 主密钥' };
 
+  _prepareKeyChange();
   const key = getMasterKey();
-  const items = queue.map(q => {
-    const enc = crypto.encryptJson(q.plain, key);
-    return {
-      table: q.table,
-      clientId: q.clientId,
-      version: q.version,
-      clientUpdatedAt: q.clientUpdatedAt,
+  const localItems = buildLocalSyncItems();
+  const queuedItems = wx.getStorageSync(K.SYNC_QUEUE) || [];
+  const queuedUpserts = queuedItems.filter(item => !item.deleted);
+  const queuedDeletes = queuedItems.filter(item => item.deleted);
+  const itemsToEncrypt = _dedupeSyncItems(queuedUpserts.concat(localItems, queuedDeletes));
+
+  if (!itemsToEncrypt.length) return { skipped: true, reason: '没有可推送的数据' };
+
+  const items = [];
+  for (const item of itemsToEncrypt) {
+    const enc = await crypto.encryptJson(item.plain || {}, key);
+    items.push({
+      table: item.table,
+      clientId: item.clientId,
+      version: item.version || item.clientUpdatedAt || Date.now(),
+      clientUpdatedAt: item.clientUpdatedAt || Date.now(),
+      deleted: !!item.deleted,
       cipher: enc.cipher,
       iv: enc.iv,
       tag: enc.tag,
       alg: enc.alg,
-      meta: q.meta
-    };
-  });
+      meta: item.meta || {}
+    });
+  }
 
   try {
-    const r = await http.post('/sync/push', { deviceId: _deviceId(), items });
-    // 推送成功后清空已入云的条目
+    const r = await http.post('/sync/push', {
+      deviceId: _deviceId(),
+      keyFingerprint: keyFingerprint(),
+      items
+    });
     wx.setStorageSync(K.SYNC_QUEUE, []);
     wx.setStorageSync(K.LAST_PUSH_AT, Date.now());
-    return { ok: true, accepted: r.accepted, serverTime: r.serverTime };
+    return { ok: true, accepted: r.accepted || items.length, serverTime: r.serverTime };
   } catch (err) {
-    // 40301: 没开会员；其他错误保留队列
     return { ok: false, error: err };
   }
 }
 
-// 拉取
-async function pullNow() {
+async function pullNow(options = {}) {
   if (!_canSync()) return { skipped: true };
-  const cursor = wx.getStorageSync(K.SYNC_CURSOR) || 0;
-  const key = getMasterKey();
 
-  const r = await http.get(`/sync/pull?since=${cursor}&limit=200`);
+  _prepareKeyChange();
+  if (options.resetCursor) wx.removeStorageSync(K.SYNC_CURSOR);
+
+  const cursor = options.resetCursor ? 0 : (wx.getStorageSync(K.SYNC_CURSOR) || 0);
+  const key = getMasterKey();
+  const r = await http.get(`/sync/pull?since=${cursor}&limit=500`, null, {
+    'X-Key-Fingerprint': keyFingerprint()
+  });
+
   const items = r.items || [];
+  if (options.replaceLocal) _clearLocalSyncedData();
 
   let merged = 0;
-  for (const it of items) {
+  let skipped = 0;
+  let failed = 0;
+
+  for (const item of items) {
+    if (!TABLES.includes(item.table)) {
+      skipped++;
+      continue;
+    }
     try {
-      const plain = crypto.decryptJson(it, key);
-      const existing = storage.indicators.getAll();
-      const idx = existing.findIndex(e => String(e.id) === String(it.clientId));
-      const entry = {
-        id: it.clientId,
-        type: it.meta && it.meta.type,
-        payload: plain,
-        measuredAt: new Date(it.meta && it.meta.measured_at || it.clientUpdatedAt).toISOString()
-      };
-      if (idx >= 0) existing[idx] = { ...existing[idx], ...entry };
-      else existing.unshift(entry);
-      wx.setStorageSync('hrp_indicators', existing.slice(0, 500));
-      merged++;
+      if (item.deleted) {
+        if (_deleteLocalItem(item.table, item.clientId)) merged++;
+        continue;
+      }
+      const plain = crypto.decryptJson(item, key);
+      const ok = _mergeLocalItem(item.table, item.clientId, plain, item);
+      ok ? merged++ : skipped++;
     } catch (e) {
-      console.warn('[sync.pull] decrypt 失败:', it.clientId, e);
+      failed++;
+      console.warn('[sync.pull] decrypt/merge failed:', item.table, item.clientId, e);
     }
   }
 
-  if (r.serverTime) wx.setStorageSync(K.SYNC_CURSOR, r.serverTime);
-  return { ok: true, merged, total: items.length };
+  if (r.serverTime && failed === 0) {
+    wx.setStorageSync(K.SYNC_CURSOR, r.serverTime);
+    wx.setStorageSync(K.LAST_PULL_AT, Date.now());
+    _saveCurrentKeyFingerprint();
+  }
+  return { ok: true, merged, skipped, failed, total: items.length };
+}
+
+function _writeMasterKey(key) {
+  const nextFingerprint = crypto.publicFingerprint(key);
+  const prevFingerprint = wx.getStorageSync(K.LAST_KEY_FINGERPRINT) || '';
+  wx.setStorageSync(K.MASTER_KEY, crypto._bytesToHex(key));
+  if (prevFingerprint && prevFingerprint !== nextFingerprint) {
+    wx.removeStorageSync(K.SYNC_CURSOR);
+  }
+  wx.setStorageSync(K.LAST_KEY_FINGERPRINT, nextFingerprint);
+}
+
+function _prepareKeyChange() {
+  const fingerprint = keyFingerprint();
+  if (!fingerprint) return;
+  const prevFingerprint = wx.getStorageSync(K.LAST_KEY_FINGERPRINT) || '';
+  if (prevFingerprint && prevFingerprint !== fingerprint) {
+    wx.removeStorageSync(K.SYNC_CURSOR);
+  }
+  wx.setStorageSync(K.LAST_KEY_FINGERPRINT, fingerprint);
+}
+
+function _saveCurrentKeyFingerprint() {
+  const fingerprint = keyFingerprint();
+  if (fingerprint) wx.setStorageSync(K.LAST_KEY_FINGERPRINT, fingerprint);
+}
+
+function _clearLocalSyncedData() {
+  Object.keys(STORAGE_KEYS).forEach(key => {
+    try {
+      wx.removeStorageSync(STORAGE_KEYS[key]);
+    } catch (e) {}
+  });
+}
+
+function buildLocalSyncItems() {
+  const items = [];
+  const profile = storage.profile.get();
+  if (profile) items.push(_profileToSyncItem(profile));
+  storage.indicators.getAll().forEach(entry => items.push(_indicatorToSyncItem(entry)));
+  storage.plans.getAll().forEach(plan => items.push(_planToSyncItem(plan)));
+  storage.clock.getAll().forEach(record => items.push(_clockToSyncItem(record)));
+  storage.reminders.getAll().forEach(reminder => items.push(_reminderToSyncItem(reminder)));
+  return items.filter(Boolean);
+}
+
+function _profileToSyncItem(profile) {
+  const now = _toMs(profile.updatedAt) || Date.now();
+  const birthYear = Number(profile.birthYear) || (Number(profile.age) ? new Date().getFullYear() - Number(profile.age) : 0);
+  const row = {
+    user_id: 'local-user',
+    client_id: 'profile-local-user',
+    nickname: profile.nickname || '',
+    gender: _toAppGender(profile.gender),
+    birth_year: birthYear,
+    height_cm: Number(profile.heightCm) || 0,
+    weight_kg: Number(profile.weightKg) || 0,
+    medical_history: _medicalHistory(profile),
+    medications: profile.medications || profile.medicines || '',
+    goal: _toAppGoal(profile.goal),
+    exercise_base: _toAppExercise(profile.exerciseBase || profile.activityLevel),
+    diet_preference: _toAppDiet(profile.dietPreference || profile.dietPref),
+    created_at: _toMs(profile.createdAt) || now,
+    updated_at: now,
+    version: now
+  };
+  return {
+    table: 'user_profile',
+    clientId: row.client_id,
+    version: now,
+    clientUpdatedAt: now,
+    plain: row,
+    meta: { nickname: row.nickname, updated_at: now }
+  };
+}
+
+function _indicatorToSyncItem(entry) {
+  const measuredAt = _toMs(entry.measuredAt) || Date.now();
+  const updatedAt = _toMs(entry.updatedAt) || measuredAt;
+  const id = String(entry.clientId || entry.id || `indicator-${updatedAt}`);
+  const type = entry.type || 'weight';
+  const payload = _toAppIndicatorPayload(type, entry.payload || {});
+  const row = {
+    user_id: 'local-user',
+    client_id: id,
+    type,
+    payload_json: JSON.stringify(payload),
+    source: entry.source || 'wxmp',
+    measured_at: measuredAt,
+    created_at: _toMs(entry.createdAt) || measuredAt,
+    updated_at: updatedAt,
+    version: updatedAt
+  };
+  return {
+    table: 'health_indicator',
+    clientId: id,
+    version: updatedAt,
+    clientUpdatedAt: updatedAt,
+    plain: row,
+    meta: { type, measured_at: measuredAt, source: row.source }
+  };
+}
+
+function _planToSyncItem(plan) {
+  const planDate = _dateToMs(plan.planDate || plan.date) || Date.now();
+  const updatedAt = _toMs(plan.updatedAt) || planDate;
+  const id = String(plan.clientId || plan.id || `plan-${plan.type || 'meal'}-${planDate}`);
+  const row = {
+    user_id: 'local-user',
+    client_id: id,
+    type: plan.type || 'meal',
+    plan_date: planDate,
+    payload_json: JSON.stringify(plan.payload || {}),
+    ai_provider: plan.aiProvider || plan.provider || 'local',
+    ai_model: plan.aiModel || plan.model || 'wxmp',
+    created_at: _toMs(plan.createdAt) || updatedAt,
+    updated_at: updatedAt,
+    version: updatedAt
+  };
+  return {
+    table: 'plan',
+    clientId: id,
+    version: updatedAt,
+    clientUpdatedAt: updatedAt,
+    plain: row,
+    meta: {
+      type: row.type,
+      plan_date: row.plan_date,
+      ai_provider: row.ai_provider,
+      ai_model: row.ai_model
+    }
+  };
+}
+
+function _clockToSyncItem(record) {
+  const clockAt = _toMs(record.clockAt || record.clockTime) || Date.now();
+  const updatedAt = _toMs(record.updatedAt) || clockAt;
+  const id = String(record.clientId || record.id || `clock-${clockAt}`);
+  const row = {
+    user_id: 'local-user',
+    client_id: id,
+    type: record.type || 'meal',
+    status: record.status || 'done',
+    clock_at: clockAt,
+    note: record.note || '',
+    photo_path: record.photoPath || '',
+    created_at: _toMs(record.createdAt) || clockAt,
+    updated_at: updatedAt,
+    version: updatedAt
+  };
+  return {
+    table: 'clock_record',
+    clientId: id,
+    version: updatedAt,
+    clientUpdatedAt: updatedAt,
+    plain: row,
+    meta: { type: row.type, clock_at: row.clock_at, status: row.status }
+  };
+}
+
+function _reminderToSyncItem(reminder) {
+  const remindAt = _reminderTimeToMs(reminder);
+  const updatedAt = _toMs(reminder.updatedAt) || remindAt;
+  const id = String(reminder.clientId || reminder.id || `reminder-${reminder.type || 'meal'}-${remindAt}`);
+  const row = {
+    user_id: 'local-user',
+    client_id: id,
+    type: reminder.type || 'meal',
+    remind_at: remindAt,
+    payload_json: JSON.stringify({
+      label: reminder.label || '',
+      note: reminder.note || '',
+      hour: Number(reminder.hour) || new Date(remindAt).getHours(),
+      minute: Number(reminder.minute) || new Date(remindAt).getMinutes()
+    }),
+    channel: reminder.channel || 'local',
+    status: reminder.status || 'pending',
+    created_at: _toMs(reminder.createdAt) || updatedAt,
+    updated_at: updatedAt,
+    version: updatedAt
+  };
+  return {
+    table: 'reminder',
+    clientId: id,
+    version: updatedAt,
+    clientUpdatedAt: updatedAt,
+    plain: row,
+    meta: { type: row.type, remind_at: row.remind_at, status: row.status }
+  };
+}
+
+function _mergeLocalItem(table, clientId, plain, cloudItem) {
+  switch (table) {
+    case 'user_profile':
+      wx.setStorageSync(STORAGE_KEYS.profile, _profileFromRow(plain));
+      return true;
+    case 'health_indicator':
+      return _upsert(STORAGE_KEYS.indicators, _indicatorFromRow(plain, clientId, cloudItem));
+    case 'plan':
+      return _upsert(STORAGE_KEYS.plans, _planFromRow(plain, clientId, cloudItem));
+    case 'clock_record':
+      return _upsert(STORAGE_KEYS.clock, _clockFromRow(plain, clientId, cloudItem));
+    case 'reminder':
+      return _upsert(STORAGE_KEYS.reminders, _reminderFromRow(plain, clientId, cloudItem));
+    default:
+      return false;
+  }
+}
+
+function _deleteLocalItem(table, clientId) {
+  const key = {
+    health_indicator: STORAGE_KEYS.indicators,
+    plan: STORAGE_KEYS.plans,
+    clock_record: STORAGE_KEYS.clock,
+    reminder: STORAGE_KEYS.reminders
+  }[table];
+  if (!key || !clientId) return false;
+  const list = wx.getStorageSync(key) || [];
+  const next = list.filter(item => String(item.clientId || item.id) !== String(clientId));
+  wx.setStorageSync(key, next);
+  return next.length !== list.length;
+}
+
+function _profileFromRow(row) {
+  const conditions = String(row.medical_history || '');
+  return {
+    nickname: row.nickname || '',
+    gender: row.gender === 'male' ? '男' : row.gender === 'female' ? '女' : '',
+    age: Number(row.birth_year) > 1900 ? new Date().getFullYear() - Number(row.birth_year) : 0,
+    heightCm: Number(row.height_cm) || 0,
+    weightKg: Number(row.weight_kg) || 0,
+    goal: _fromAppGoal(row.goal),
+    activityLevel: _fromAppExercise(row.exercise_base),
+    dietPref: _fromAppDiet(row.diet_preference),
+    hasHypertension: conditions.includes('hypertension') || conditions.includes('高血压'),
+    hasDiabetes: conditions.includes('diabetes') || conditions.includes('糖尿病'),
+    hasHyperlipidemia: conditions.includes('hyperlipidemia') || conditions.includes('高血脂'),
+    hasCVD: conditions.includes('cvd') || conditions.includes('心血管'),
+    hasObesity: conditions.includes('obesity') || conditions.includes('肥胖'),
+    medicines: row.medications || '',
+    updatedAt: new Date(Number(row.updated_at) || Date.now()).toISOString()
+  };
+}
+
+function _indicatorFromRow(row, clientId, item) {
+  const meta = item.meta || {};
+  const type = meta.type || row.type || 'weight';
+  return {
+    id: clientId || row.client_id || row.id || `cloud-indicator-${Date.now()}`,
+    clientId: clientId || row.client_id || '',
+    type,
+    payload: _toWxIndicatorPayload(type, _extractPayload(row)),
+    measuredAt: new Date(Number(meta.measured_at || row.measured_at || item.clientUpdatedAt || Date.now())).toISOString(),
+    source: meta.source || row.source || 'cloud',
+    updatedAt: new Date(Number(row.updated_at || item.clientUpdatedAt || Date.now())).toISOString()
+  };
+}
+
+function _planFromRow(row, clientId, item) {
+  const planDate = Number(row.plan_date || item.clientUpdatedAt || Date.now());
+  return {
+    id: clientId || row.client_id || row.id || `cloud-plan-${planDate}`,
+    clientId: clientId || row.client_id || '',
+    type: row.type || 'meal',
+    date: _dateString(planDate),
+    payload: _parseJson(row.payload_json, {}),
+    aiProvider: row.ai_provider || '',
+    aiModel: row.ai_model || '',
+    updatedAt: new Date(Number(row.updated_at || item.clientUpdatedAt || Date.now())).toISOString()
+  };
+}
+
+function _clockFromRow(row, clientId, item) {
+  const clockAt = Number(row.clock_at || item.clientUpdatedAt || Date.now());
+  return {
+    id: clientId || row.client_id || row.id || `cloud-clock-${clockAt}`,
+    clientId: clientId || row.client_id || '',
+    type: row.type || 'meal',
+    status: row.status || 'done',
+    note: row.note || '',
+    photoPath: row.photo_path || '',
+    clockTime: new Date(clockAt).toISOString(),
+    updatedAt: new Date(Number(row.updated_at || item.clientUpdatedAt || Date.now())).toISOString()
+  };
+}
+
+function _reminderFromRow(row, clientId, item) {
+  const remindAt = Number(row.remind_at || item.clientUpdatedAt || Date.now());
+  const payload = _parseJson(row.payload_json, {});
+  const d = new Date(remindAt);
+  return {
+    id: clientId || row.client_id || row.id || `cloud-reminder-${remindAt}`,
+    clientId: clientId || row.client_id || '',
+    type: row.type || 'meal',
+    label: payload.label || '',
+    note: payload.note || '',
+    hour: Number(payload.hour) || d.getHours(),
+    minute: Number(payload.minute) || d.getMinutes(),
+    channel: row.channel || 'local',
+    status: row.status || 'pending',
+    updatedAt: new Date(Number(row.updated_at || item.clientUpdatedAt || Date.now())).toISOString()
+  };
+}
+
+function _upsert(key, entry) {
+  const list = wx.getStorageSync(key) || [];
+  const id = String(entry.clientId || entry.id);
+  const idx = list.findIndex(item => String(item.clientId || item.id) === id);
+  if (idx >= 0) list[idx] = { ...list[idx], ...entry };
+  else list.unshift(entry);
+  wx.setStorageSync(key, list.slice(0, 500));
+  return true;
+}
+
+function _dedupeSyncItems(items) {
+  const map = new Map();
+  items.forEach(item => {
+    if (!item || !item.table || !item.clientId) return;
+    map.set(`${item.table}:${item.clientId}`, item);
+  });
+  return Array.from(map.values());
+}
+
+function _extractPayload(row) {
+  if (row.payload_json) return _parseJson(row.payload_json, {});
+  if (row.payload && typeof row.payload === 'object') return row.payload;
+  return row || {};
+}
+
+function _toAppIndicatorPayload(type, payload) {
+  const p = { ...payload };
+  if (type === 'glucose' && p.glucoseMmol === undefined && p.mmol !== undefined) p.glucoseMmol = p.mmol;
+  if (type === 'spo2' && p.spo2Pct === undefined && p.pct !== undefined) p.spo2Pct = p.pct;
+  if (type === 'waist' && p.waistCm === undefined && p.cm !== undefined) p.waistCm = p.cm;
+  if (type === 'body_fat' && p.bodyFatPct === undefined && p.pct !== undefined) p.bodyFatPct = p.pct;
+  if (type === 'sleep' && p.sleepHours === undefined && p.hours !== undefined) p.sleepHours = p.hours;
+  if (type === 'steps' && p.steps === undefined && p.count !== undefined) p.steps = p.count;
+  return p;
+}
+
+function _toWxIndicatorPayload(type, payload) {
+  const p = { ...payload };
+  if (type === 'glucose' && p.mmol === undefined && p.glucoseMmol !== undefined) p.mmol = p.glucoseMmol;
+  if (type === 'spo2' && p.pct === undefined && p.spo2Pct !== undefined) p.pct = p.spo2Pct;
+  if (type === 'waist' && p.cm === undefined && p.waistCm !== undefined) p.cm = p.waistCm;
+  if (type === 'body_fat' && p.pct === undefined && p.bodyFatPct !== undefined) p.pct = p.bodyFatPct;
+  if (type === 'sleep' && p.hours === undefined && p.sleepHours !== undefined) p.hours = p.sleepHours;
+  if (type === 'steps' && p.count === undefined && p.steps !== undefined) p.count = p.steps;
+  return p;
+}
+
+function _medicalHistory(profile) {
+  const parts = [];
+  if (profile.medicalHistory) parts.push(profile.medicalHistory);
+  if (profile.hasHypertension) parts.push('hypertension');
+  if (profile.hasDiabetes) parts.push('diabetes');
+  if (profile.hasHyperlipidemia) parts.push('hyperlipidemia');
+  if (profile.hasCVD) parts.push('cvd');
+  if (profile.hasObesity) parts.push('obesity');
+  return parts.join('；');
+}
+
+function _toAppGender(v) {
+  const s = String(v || '').toLowerCase();
+  if (s === 'male' || s.includes('男')) return 'male';
+  if (s === 'female' || s.includes('女')) return 'female';
+  return 'unknown';
+}
+
+function _toAppGoal(v) {
+  const s = String(v || '');
+  if (s === 'fat_loss' || s.includes('减脂') || s.includes('降重')) return 'fat_loss';
+  if (s === 'glucose_control' || s.includes('控糖')) return 'glucose_control';
+  if (s === 'bp_control' || s.includes('控压')) return 'bp_control';
+  if (s === 'lipid_control' || s.includes('降脂')) return 'lipid_control';
+  return 'maintain';
+}
+
+function _fromAppGoal(v) {
+  return {
+    fat_loss: '减脂降重',
+    glucose_control: '控糖',
+    bp_control: '控压',
+    lipid_control: '降脂',
+    maintain: '综合调理'
+  }[v] || '综合调理';
+}
+
+function _toAppExercise(v) {
+  const s = String(v || '');
+  if (s === 'moderate' || s.includes('中度')) return 'moderate';
+  if (s === 'light' || s.includes('轻度')) return 'light';
+  if (s.includes('高度')) return 'moderate';
+  return 'none';
+}
+
+function _fromAppExercise(v) {
+  return v === 'moderate' ? '中度活动' : v === 'light' ? '轻度活动' : '久坐不动';
+}
+
+function _toAppDiet(v) {
+  const s = String(v || '');
+  if (s === 'light' || s.includes('低盐') || s.includes('低脂')) return 'light';
+  if (s === 'vegetarian' || s.includes('素食')) return 'vegetarian';
+  if (s === 'custom' || s.includes('定制')) return 'custom';
+  return 'normal';
+}
+
+function _fromAppDiet(v) {
+  return v === 'light' ? '低盐低脂' : v === 'vegetarian' ? '素食' : v === 'custom' ? '定制饮食' : '普通饮食';
+}
+
+function _toMs(value) {
+  if (value === undefined || value === null || value === '') return 0;
+  if (typeof value === 'number') return value;
+  const n = Number(value);
+  if (Number.isFinite(n) && n > 1000000000) return n;
+  const d = new Date(value);
+  const ms = d.getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function _dateToMs(value) {
+  if (typeof value === 'number') return value;
+  if (!value) return 0;
+  const raw = String(value);
+  const d = raw.includes('T') ? new Date(raw) : new Date(`${raw}T00:00:00`);
+  const ms = d.getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function _reminderTimeToMs(reminder) {
+  if (reminder.remindAt) return _toMs(reminder.remindAt);
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(reminder.hour) || 7, Number(reminder.minute) || 0, 0, 0);
+  return d.getTime();
+}
+
+function _dateString(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function _parseJson(raw, fallback) {
+  if (!raw) return fallback;
+  if (typeof raw === 'object') return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function normalizeMnemonic(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function _canSync() {
@@ -179,26 +679,31 @@ function _canSync() {
   return app.isLoggedIn() && hasMasterKey();
 }
 
-// 状态摘要
 function status() {
   return {
     loggedIn: !!getApp().isLoggedIn(),
     hasKey: hasMasterKey(),
-    queueLen: (wx.getStorageSync(K.SYNC_QUEUE) || []).length,
+    queueLen: buildLocalSyncItems().length + (wx.getStorageSync(K.SYNC_QUEUE) || []).filter(q => q.deleted).length,
     cursor: wx.getStorageSync(K.SYNC_CURSOR) || 0,
     lastPushAt: wx.getStorageSync(K.LAST_PUSH_AT) || 0,
-    deviceId: _deviceId()
+    lastPullAt: wx.getStorageSync(K.LAST_PULL_AT) || 0,
+    deviceId: _deviceId(),
+    keyFingerprint: keyFingerprint()
   };
 }
 
 module.exports = {
-  setMasterKeyByPassword,
+  generateMasterKey,
+  setMasterKeyFromMnemonic,
   hasMasterKey,
   clearMasterKey,
   enqueueIndicator,
+  enqueueIndicatorDelete,
   enqueueAllIndicators,
   pushLocalIndicatorsIfReady,
   pushNow,
   pullNow,
-  status
+  status,
+  keyFingerprint,
+  buildLocalSyncItems
 };

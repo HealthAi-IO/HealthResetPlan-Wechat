@@ -1,0 +1,21 @@
+{
+  "name": "healthresetplan-wechat",
+  "version": "1.0.0",
+  "description": "HealthResetPlan WeChat mini program",
+  "main": "index.js",
+  "scripts": {
+    "build:crypto": "esbuild tools/crypto_vendor_entry.mjs --bundle --platform=browser --format=cjs --target=es2018 --outfile=miniprogram/utils/crypto_vendor.js",
+    "test": "node tools/verify_crypto.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@noble/ciphers": "^2.2.0",
+    "@scure/base": "^2.2.0",
+    "@scure/bip39": "^2.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  }
+}

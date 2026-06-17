@@ -111,11 +111,6 @@ Page({
   onGoSettings()   { wx.switchTab({ url: '/pages/settings/index' }); },
   onGoChat()       { wx.navigateTo({ url: '/pages/chat/index' }); },
   onGoReport()     { wx.navigateTo({ url: '/pages/report/index' }); },
-  onUseDemoData() {
-    storage.resetDemoData();
-    this._load();
-    wx.showToast({ title: '已恢复测试数据', icon: 'success' });
-  },
 });
 
 function _fmtTime(iso) {

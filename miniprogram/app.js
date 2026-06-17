@@ -1,3 +1,5 @@
+const config = require('./utils/config');
+
 App({
   globalData: {
     userInfo: null,
@@ -6,11 +8,15 @@ App({
     refreshToken: null,
     hasCloudSync: false,
     avatarUrl: '',
-    baseUrl: 'http://192.168.1.188:8080/api/v1'
+    baseUrl: config.getApiBaseUrl(),
+    envVersion: config.getEnvVersion(),
+    appVersion: config.APP_VERSION
   },
 
   onLaunch() {
     try {
+      this.globalData.baseUrl = config.getApiBaseUrl();
+      this.globalData.envVersion = config.getEnvVersion();
       this.globalData.accessToken  = wx.getStorageSync('hrp_access_token')  || null;
       this.globalData.refreshToken = wx.getStorageSync('hrp_refresh_token') || null;
       this.globalData.userId       = wx.getStorageSync('hrp_user_id')       || null;

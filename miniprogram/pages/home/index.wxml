@@ -30,7 +30,6 @@
     <view class="setup-actions">
       <button class="setup-primary" bindtap="onGoProfile">完善档案</button>
       <button class="setup-outline" bindtap="onGoIndicators">录入指标</button>
-      <button class="setup-text" bindtap="onUseDemoData">使用测试数据</button>
     </view>
   </view>
 

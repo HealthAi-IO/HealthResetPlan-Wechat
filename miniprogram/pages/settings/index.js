@@ -96,12 +96,6 @@ Page({
     });
   },
 
-  onResetDemoData() {
-    storage.resetDemoData();
-    this._load();
-    wx.showToast({ title: '已恢复测试数据', icon: 'success' });
-  },
-
   onFeedback() {
     wx.setClipboardData({ data: 'healthresetplan@outlook.com' });
     wx.showToast({ title: '邮箱已复制', icon: 'none' });

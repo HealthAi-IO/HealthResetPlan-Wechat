@@ -1,4 +1,5 @@
 const storage = require('../../utils/storage');
+const sync = require('../../utils/sync');
 
 const CLOCK_TYPES = [
   { type: 'meal',     icon: '🍚', label: '饮食', hint: '例如"低盐便当 + 蒸鱼"', color: '#FB8C00' },
@@ -91,7 +92,8 @@ Page({
       wx.showToast({ title: '请输入有效体重（20-300 kg）', icon: 'none' }); return;
     }
     storage.clock.add({ type: 'weight', status: 'done', note: `体重 ${v} kg` });
-    storage.indicators.add({ type: 'weight', payload: { weightKg: v } });
+    const entry = storage.indicators.add({ type: 'weight', payload: { weightKg: v } });
+    try { sync.enqueueIndicator(entry); } catch (e) {}
     this.setData({ 'weightModal.show': false });
     this._load();
     wx.showToast({ title: `称重 ${v} kg 已记录 ✓`, icon: 'success', duration: 1500 });

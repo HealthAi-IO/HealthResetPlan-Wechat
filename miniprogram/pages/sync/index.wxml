@@ -1,40 +1,75 @@
 <view class="container">
-
-  <!-- 顶部状态 -->
   <view class="status-card {{state.loggedIn && state.hasKey ? 'on' : ''}}">
-    <view class="status-icon">{{state.loggedIn && state.hasKey ? '🟢' : '⚪'}}</view>
+    <view class="status-dot"></view>
     <view class="status-body">
       <view class="status-title">{{state.loggedIn && state.hasKey ? '云同步已开启' : '云同步未开启'}}</view>
       <view class="status-sub muted">
-        <block wx:if="{{!state.loggedIn}}">请先登录账号</block>
-        <block wx:elif="{{!state.hasKey}}">请设置同步密码以派生主密钥</block>
+        <block wx:if="{{!state.loggedIn}}">请先登录同一个账号</block>
+        <block wx:elif="{{!state.hasKey}}">生成新主密钥，或使用 APP 备份的助记词恢复</block>
         <block wx:else>主密钥保存在本地，服务端无法读取明文</block>
       </view>
     </view>
   </view>
 
-  <!-- 设置主密钥 -->
-  <view class="card" wx:if="{{state.loggedIn}}">
-    <view class="card-title">🔐 同步密码</view>
-    <view class="card-sub muted">用于派生 32 字节主密钥（PBKDF2，10000 轮）。请记牢，丢失后云端数据无法恢复。</view>
-    <input class="input"
-           password="true"
-           placeholder="输入同步密码（至少 8 位）"
-           value="{{password}}"
-           bindinput="onPwdInput" />
-    <view class="btn-row">
-      <button class="btn-solid" bindtap="onSetKey">
-        {{state.hasKey ? '更换密码' : '设置并启用'}}
-      </button>
-      <button class="btn-ghost" wx:if="{{state.hasKey}}" bindtap="onClearKey">清除密钥</button>
-    </view>
+  <view class="guide-card">
+    <view class="guide-title">云同步功能使用方法</view>
+    <view class="guide-line">1. 已在 APP 上传过数据：小程序必须恢复 APP 备份的同一组助记词。</view>
+    <view class="guide-line">2. 首次在小程序开通：生成主密钥，离线备份 24 个助记词，再立即推送。</view>
+    <view class="guide-line">3. 更换设备或重装后：登录同一个账号，恢复同一组助记词，再拉取云端。</view>
+    <view class="guide-line">4. 新生成的主密钥不能解密旧主密钥上传的数据。</view>
   </view>
 
-  <!-- 同步操作 -->
+  <view class="card" wx:if="{{state.loggedIn}}">
+    <view class="card-title">生成主密钥</view>
+    <view class="card-sub muted">首次开通云同步时使用</view>
+    <view class="body-text">系统会在本地生成 32 字节 UMK，并写入小程序本地存储。服务端始终只看到密文。</view>
+    <button class="btn-solid single-btn" bindtap="onGenerateMasterKey" disabled="{{busy}}">
+      {{busy ? '处理中...' : '生成主密钥'}}
+    </button>
+  </view>
+
+  <view class="card" wx:if="{{state.loggedIn}}">
+    <view class="card-title">助记词备份</view>
+    <view class="card-sub muted">请离线抄写，丢失后无法恢复云端密文</view>
+
+    <view wx:if="{{generatedMnemonic}}" class="mnemonic-box">
+      <view class="mnemonic-word" wx:for="{{generatedWords}}" wx:key="*this">
+        {{index + 1}}. {{item}}
+      </view>
+    </view>
+    <view wx:else class="empty-box">生成主密钥后，助记词会显示在这里。</view>
+
+    <view class="btn-row" wx:if="{{generatedMnemonic}}">
+      <button class="btn-ghost" bindtap="onCopyGeneratedMnemonic">复制助记词</button>
+    </view>
+    <checkbox-group bindchange="onBackupConfirmChange" wx:if="{{generatedMnemonic}}">
+      <label class="check-row">
+        <checkbox value="confirmed" checked="{{backupConfirmed}}" />
+        <text>我已离线备份助记词</text>
+      </label>
+    </checkbox-group>
+  </view>
+
+  <view class="card" wx:if="{{state.loggedIn}}">
+    <view class="card-title">恢复主密钥</view>
+    <view class="card-sub muted">更换设备、重装，或同步 APP 云端数据时使用</view>
+    <textarea
+      class="textarea"
+      placeholder="输入 APP 或小程序备份的 24 个助记词"
+      maxlength="-1"
+      auto-height="true"
+      value="{{mnemonic}}"
+      bindinput="onMnemonicInput"
+    />
+    <button class="btn-ghost single-btn" bindtap="onRestoreMnemonic" disabled="{{busy}}">
+      恢复到本地
+    </button>
+  </view>
+
   <view class="card" wx:if="{{state.loggedIn && state.hasKey}}">
-    <view class="card-title">📤 同步操作</view>
+    <view class="card-title">同步操作</view>
     <view class="kv-row">
-      <text>待推送</text>
+      <text>本地可推送</text>
       <text class="strong">{{state.queueLen}} 条</text>
     </view>
     <view class="kv-row">
@@ -45,29 +80,28 @@
       <text>设备 ID</text>
       <text class="muted ellipsis">{{state.deviceId}}</text>
     </view>
+    <view class="kv-row">
+      <text>密钥指纹</text>
+      <text class="muted ellipsis">{{state.keyFingerprint}}</text>
+    </view>
     <view class="btn-row">
       <button class="btn-solid" bindtap="onPush" disabled="{{busy}}">
-        {{busy ? '…' : '⬆️ 立即推送'}}
+        {{busy ? '处理中...' : '立即推送'}}
       </button>
       <button class="btn-ghost" bindtap="onPull" disabled="{{busy}}">
-        {{busy ? '…' : '⬇️ 拉取云端'}}
+        {{busy ? '处理中...' : '拉取云端'}}
       </button>
     </view>
   </view>
 
-  <!-- 会员引导 -->
-  <view class="tip" wx:if="{{state.loggedIn && state.hasKey}}" bindtap="onGoMembership" style="cursor:pointer">
-    💎 推送 / 拉取 需开通会员（拥有 cloud_sync 权益）。点击进入会员中心
+  <view class="tip" wx:if="{{state.loggedIn && state.hasKey}}" bindtap="onGoMembership">
+    推送 / 拉取需要账号拥有 cloud_sync 权益。点击进入会员中心。
   </view>
 
-  <!-- 说明 -->
   <view class="tip muted">
-    💡 微信小程序版加密目前为 <text class="strong">演示性占位实现</text>（HMAC-SHA256 流密码 + 完整性校验），
-    生产环境请在小程序中安装 <text class="strong">crypto-js</text> 并替换为 AES-256-CBC。
-    Flutter 主端默认使用 AES-256-GCM，跨端互通需在 Flutter 端按 alg 字段路由解密。
+    如果你想同步 APP 已上传的数据，请不要在小程序重新生成主密钥，必须粘贴 APP 原来备份的助记词。
   </view>
 
-  <!-- 日志 -->
   <view class="log-card" wx:if="{{logs.length}}">
     <view class="card-title">操作日志</view>
     <view class="log-line" wx:for="{{logs}}" wx:key="t">

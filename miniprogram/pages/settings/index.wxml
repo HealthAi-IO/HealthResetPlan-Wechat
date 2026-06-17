@@ -67,12 +67,6 @@
 
   <!-- 其他操作 -->
   <view class="section-card">
-    <view class="cell" bindtap="onResetDemoData">
-      <view class="cell-icon">🧪</view>
-      <view class="cell-label">[测试] 恢复默认数据</view>
-      <view class="cell-arrow muted">›</view>
-    </view>
-    <view class="cell-divider"></view>
     <view class="cell" bindtap="onClearData">
       <view class="cell-icon">🗑️</view>
       <view class="cell-label cell-danger">清除本地数据</view>
