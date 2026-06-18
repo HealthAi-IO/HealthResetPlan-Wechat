@@ -25,11 +25,14 @@
 
   <!-- 新用户数据引导 -->
   <view class="card setup-card" wx:if="{{needsSetup}}">
-    <view class="setup-title">先填写你的健康数据</view>
-    <view class="setup-desc muted">当前还没有可用于分析的数据。完善档案和录入指标后，免费版和会员版会沿用同一份数据。</view>
+    <view class="setup-title">{{needsIndicators ? '还缺少健康指标' : '先填写你的健康档案'}}</view>
+    <view class="setup-desc muted" wx:if="{{needsIndicators}}">档案已同步/已保存，还需要至少一条血压、体重、血糖或报告识别指标，才能用于分析和生成计划。</view>
+    <view class="setup-desc muted" wx:else>当前还没有完整档案。完善年龄、身高、体重和目标后，免费版和会员版会沿用同一份数据。</view>
     <view class="setup-actions">
-      <button class="setup-primary" bindtap="onGoProfile">完善档案</button>
-      <button class="setup-outline" bindtap="onGoIndicators">录入指标</button>
+      <button class="setup-primary" wx:if="{{needsIndicators}}" bindtap="onGoIndicators">录入指标</button>
+      <button class="setup-primary" wx:else bindtap="onGoProfile">完善档案</button>
+      <button class="setup-outline" wx:if="{{needsIndicators}}" bindtap="onGoReport">报告识别</button>
+      <button class="setup-outline" wx:else bindtap="onGoIndicators">录入指标</button>
     </view>
   </view>
 

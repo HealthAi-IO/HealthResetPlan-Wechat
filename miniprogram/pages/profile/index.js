@@ -26,6 +26,14 @@ Page({
   },
 
   onLoad() {
+    this._loadProfile();
+  },
+
+  onShow() {
+    this._loadProfile();
+  },
+
+  _loadProfile() {
     const prof = storage.profile.get();
     if (prof) {
       const goalIdx     = GOAL_LIST.indexOf(prof.goal)          >= 0 ? GOAL_LIST.indexOf(prof.goal)          : 0;
@@ -52,7 +60,15 @@ Page({
       }, () => this._refreshSummary());
       return;
     }
-    this._refreshSummary();
+    this.setData({
+      form: {
+        nickname: '', gender: 0, age: '', heightCm: '', weightKg: '',
+        goal: 0, activityLevel: 0, dietPref: 0,
+        hasHypertension: false, hasDiabetes: false, hasHyperlipidemia: false,
+        hasCVD: false, hasObesity: false,
+        medicines: '',
+      }
+    }, () => this._refreshSummary());
   },
 
   onInput(e)  { this.setData({ [`form.${e.currentTarget.dataset.field}`]: e.detail.value }, () => this._refreshSummary()); },
@@ -72,6 +88,7 @@ Page({
       nickname:          f.nickname.trim(),
       gender:            GENDER_LIST[f.gender],
       age:               parseInt(f.age)       || 0,
+      birthYear:         parseInt(f.age)       ? new Date().getFullYear() - (parseInt(f.age) || 0) : 0,
       heightCm:          parseFloat(f.heightCm) || 0,
       weightKg:          parseFloat(f.weightKg) || 0,
       goal:              GOAL_LIST[f.goal],

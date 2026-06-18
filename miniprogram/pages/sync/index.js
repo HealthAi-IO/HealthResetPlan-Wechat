@@ -96,7 +96,8 @@ Page({
         this._log(`云端拉取完成，但 ${result.failed} 条无法解密，请确认助记词来自 APP 上传数据时的同一把主密钥`);
         wx.showToast({ title: '部分数据无法解密', icon: 'none' });
       } else {
-        this._log(`云端拉取完成：合并 ${result.merged}/${result.total} 条`);
+        const tableParts = this._formatTableStats(result.byTable);
+        this._log(`云端拉取完成：合并 ${result.merged}/${result.total} 条${tableParts ? `；${tableParts}` : ''}`);
         wx.showToast({
           title: result.total ? `已恢复 ${result.merged} 条` : '云端暂无可恢复数据',
           icon: result.total ? 'success' : 'none',
@@ -163,7 +164,8 @@ Page({
         const parts = [`合并 ${r.merged}/${r.total} 条`];
         if (r.skipped) parts.push(`跳过 ${r.skipped} 条`);
         if (r.failed) parts.push(`失败 ${r.failed} 条`);
-        this._log(`拉取完成：${parts.join('，')}`);
+        const tableParts = this._formatTableStats(r.byTable);
+        this._log(`拉取完成：${parts.join('，')}${tableParts ? `；${tableParts}` : ''}`);
         const title = r.failed
           ? '密钥不匹配，部分数据无法解密'
           : (r.merged === 0 && r.total > 0 ? '没有可用这把密钥解密的新数据' : `合并 ${r.merged} 条`);
@@ -207,6 +209,26 @@ Page({
   _fmtTime() {
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+  },
+
+  _formatTableStats(byTable) {
+    if (!byTable) return '';
+    const names = {
+      user_profile: '档案',
+      health_indicator: '指标',
+      plan: '计划',
+      clock_record: '打卡',
+      reminder: '提醒',
+      health_report: '报告',
+    };
+    return Object.keys(byTable)
+      .filter(key => byTable[key] && byTable[key].total)
+      .map(key => {
+        const stat = byTable[key];
+        const label = names[key] || key;
+        return `${label}${stat.merged}/${stat.total}`;
+      })
+      .join('，');
   },
 });
 

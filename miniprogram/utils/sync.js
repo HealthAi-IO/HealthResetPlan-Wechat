@@ -37,7 +37,8 @@ const STORAGE_KEYS = {
   indicators: 'hrp_indicators',
   plans: 'hrp_plans',
   clock: 'hrp_clock_records',
-  reminders: 'hrp_reminders'
+  reminders: 'hrp_reminders',
+  reports: 'hrp_reports'
 };
 
 function setMasterKeyFromMnemonic(mnemonic) {
@@ -184,38 +185,72 @@ async function pullNow(options = {}) {
     'X-Key-Fingerprint': keyFingerprint()
   });
 
-  const items = r.items || [];
-  if (options.replaceLocal) _clearLocalSyncedData();
+  const items = Array.isArray(r.items) ? r.items : [];
+  const byTable = _emptyPullStats();
+  const decodedItems = [];
 
   let merged = 0;
   let skipped = 0;
   let failed = 0;
 
-  for (const item of items) {
+  for (const rawItem of items) {
+    const item = _normalizeCloudItem(rawItem);
     if (!TABLES.includes(item.table)) {
       skipped++;
       continue;
     }
+    _bumpPullStat(byTable, item.table, 'total');
     try {
       if (item.deleted) {
-        if (_deleteLocalItem(item.table, item.clientId)) merged++;
+        decodedItems.push({ item, deleted: true });
         continue;
       }
-      const plain = crypto.decryptJson(item, key);
-      const ok = _mergeLocalItem(item.table, item.clientId, plain, item);
-      ok ? merged++ : skipped++;
+      const plain = _normalizePlainRow(crypto.decryptJson(item, key));
+      decodedItems.push({ item, plain, deleted: false });
     } catch (e) {
       failed++;
+      _bumpPullStat(byTable, item.table, 'failed');
       console.warn('[sync.pull] decrypt/merge failed:', item.table, item.clientId, e);
     }
   }
+
+  if (options.replaceLocal && decodedItems.length) _clearLocalSyncedData();
+
+  decodedItems.forEach(entry => {
+    const item = entry.item;
+    try {
+      if (entry.deleted) {
+        const deleted = _deleteLocalItem(item.table, item.clientId);
+        if (deleted) {
+          merged++;
+          _bumpPullStat(byTable, item.table, 'deleted');
+        } else {
+          skipped++;
+          _bumpPullStat(byTable, item.table, 'skipped');
+        }
+        return;
+      }
+      const ok = _mergeLocalItem(item.table, item.clientId, entry.plain, item);
+      if (ok) {
+        merged++;
+        _bumpPullStat(byTable, item.table, 'merged');
+      } else {
+        skipped++;
+        _bumpPullStat(byTable, item.table, 'skipped');
+      }
+    } catch (e) {
+      failed++;
+      _bumpPullStat(byTable, item.table, 'failed');
+      console.warn('[sync.pull] merge failed:', item.table, item.clientId, e);
+    }
+  });
 
   if (r.serverTime && failed === 0) {
     wx.setStorageSync(K.SYNC_CURSOR, r.serverTime);
     wx.setStorageSync(K.LAST_PULL_AT, Date.now());
     _saveCurrentKeyFingerprint();
   }
-  return { ok: true, merged, skipped, failed, total: items.length };
+  return { ok: true, merged, skipped, failed, total: items.length, byTable };
 }
 
 function _writeMasterKey(key) {
@@ -251,6 +286,31 @@ function _clearLocalSyncedData() {
   });
 }
 
+function _emptyPullStats() {
+  const stats = {};
+  TABLES.forEach(table => {
+    stats[table] = { total: 0, merged: 0, skipped: 0, failed: 0, deleted: 0 };
+  });
+  return stats;
+}
+
+function _bumpPullStat(stats, table, field) {
+  if (!stats[table]) stats[table] = { total: 0, merged: 0, skipped: 0, failed: 0, deleted: 0 };
+  stats[table][field] = (Number(stats[table][field]) || 0) + 1;
+}
+
+function _normalizeCloudItem(item) {
+  const meta = item && item.meta && typeof item.meta === 'object' ? item.meta : {};
+  const table = item.table || item.tableName || item.table_name || meta.table || meta.tableName || meta.table_name || '';
+  const clientId = item.clientId || item.client_id || item.clientID || item.id || meta.clientId || meta.client_id || '';
+  return {
+    ...item,
+    table: String(table || ''),
+    clientId: clientId === undefined || clientId === null ? '' : String(clientId),
+    deleted: !!(item.deleted || item.isDeleted || item.is_deleted)
+  };
+}
+
 function buildLocalSyncItems() {
   const items = [];
   const profile = storage.profile.get();
@@ -259,6 +319,7 @@ function buildLocalSyncItems() {
   storage.plans.getAll().forEach(plan => items.push(_planToSyncItem(plan)));
   storage.clock.getAll().forEach(record => items.push(_clockToSyncItem(record)));
   storage.reminders.getAll().forEach(reminder => items.push(_reminderToSyncItem(reminder)));
+  storage.reports.getAll().forEach(report => items.push(_reportToSyncItem(report)));
   return items.filter(Boolean);
 }
 
@@ -407,11 +468,46 @@ function _reminderToSyncItem(reminder) {
   };
 }
 
+function _reportToSyncItem(report) {
+  const reportTime = _toMs(report.reportTime) || Date.now();
+  const updatedAt = _toMs(report.updatedAt) || reportTime;
+  const id = String(report.clientId || report.id || `report-${reportTime}`);
+  const structured = report.structured && typeof report.structured === 'object'
+    ? report.structured
+    : {};
+  const imageBase64 = _readFileBase64(report.imagePath);
+  const row = {
+    user_id: 'local-user',
+    client_id: id,
+    image_path: report.imagePath || '',
+    report_time: reportTime,
+    summary: report.summary || '',
+    raw_text: report.rawText || '',
+    structured_json: JSON.stringify(structured),
+    provider: report.provider || structured.provider || '',
+    created_at: _toMs(report.createdAt) || updatedAt,
+    updated_at: updatedAt,
+    version: updatedAt,
+    image_base64: imageBase64,
+    image_ext: _fileExt(report.imagePath)
+  };
+  return {
+    table: 'health_report',
+    clientId: id,
+    version: updatedAt,
+    clientUpdatedAt: updatedAt,
+    plain: row,
+    meta: {
+      report_time: row.report_time,
+      provider: row.provider
+    }
+  };
+}
+
 function _mergeLocalItem(table, clientId, plain, cloudItem) {
   switch (table) {
     case 'user_profile':
-      wx.setStorageSync(STORAGE_KEYS.profile, _profileFromRow(plain));
-      return true;
+      return _mergeProfile(plain);
     case 'health_indicator':
       return _upsert(STORAGE_KEYS.indicators, _indicatorFromRow(plain, clientId, cloudItem));
     case 'plan':
@@ -420,6 +516,8 @@ function _mergeLocalItem(table, clientId, plain, cloudItem) {
       return _upsert(STORAGE_KEYS.clock, _clockFromRow(plain, clientId, cloudItem));
     case 'reminder':
       return _upsert(STORAGE_KEYS.reminders, _reminderFromRow(plain, clientId, cloudItem));
+    case 'health_report':
+      return _upsert(STORAGE_KEYS.reports, _reportFromRow(plain, clientId, cloudItem));
     default:
       return false;
   }
@@ -430,7 +528,8 @@ function _deleteLocalItem(table, clientId) {
     health_indicator: STORAGE_KEYS.indicators,
     plan: STORAGE_KEYS.plans,
     clock_record: STORAGE_KEYS.clock,
-    reminder: STORAGE_KEYS.reminders
+    reminder: STORAGE_KEYS.reminders,
+    health_report: STORAGE_KEYS.reports
   }[table];
   if (!key || !clientId) return false;
   const list = wx.getStorageSync(key) || [];
@@ -439,23 +538,63 @@ function _deleteLocalItem(table, clientId) {
   return next.length !== list.length;
 }
 
+function _mergeProfile(plain) {
+  const profile = _profileFromRow(plain);
+  if (!_hasProfileContent(profile)) return false;
+  const current = storage.profile.get() || {};
+  wx.setStorageSync(STORAGE_KEYS.profile, {
+    ...current,
+    ...profile,
+    updatedAt: profile.updatedAt || new Date().toISOString()
+  });
+  return true;
+}
+
+function _hasProfileContent(profile) {
+  if (!profile) return false;
+  return !!(
+    profile.nickname ||
+    profile.age ||
+    profile.birthYear ||
+    profile.heightCm ||
+    profile.weightKg ||
+    profile.medicines ||
+    profile.hasHypertension ||
+    profile.hasDiabetes ||
+    profile.hasHyperlipidemia ||
+    profile.hasCVD ||
+    profile.hasObesity
+  );
+}
+
 function _profileFromRow(row) {
-  const conditions = String(row.medical_history || '');
+  row = _normalizePlainRow(row);
+  const conditions = String(row.medical_history || row.medicalHistory || '');
+  const explicitAge = Number(row.age) || 0;
+  const birthYear = Number(row.birth_year || row.birthYear) ||
+    (explicitAge > 0 ? new Date().getFullYear() - explicitAge : 0);
+  const age = explicitAge || (birthYear > 1900 ? new Date().getFullYear() - birthYear : 0);
+  const gender = row.gender === 'male'
+    ? '男'
+    : row.gender === 'female'
+      ? '女'
+      : (row.gender === '男' || row.gender === '女' ? row.gender : '');
   return {
     nickname: row.nickname || '',
-    gender: row.gender === 'male' ? '男' : row.gender === 'female' ? '女' : '',
-    age: Number(row.birth_year) > 1900 ? new Date().getFullYear() - Number(row.birth_year) : 0,
-    heightCm: Number(row.height_cm) || 0,
-    weightKg: Number(row.weight_kg) || 0,
-    goal: _fromAppGoal(row.goal),
-    activityLevel: _fromAppExercise(row.exercise_base),
-    dietPref: _fromAppDiet(row.diet_preference),
+    gender,
+    age,
+    heightCm: Number(row.height_cm || row.heightCm) || 0,
+    weightKg: Number(row.weight_kg || row.weightKg) || 0,
+    goal: _fromProfileGoal(row.goal),
+    activityLevel: row.activityLevel || _fromAppExercise(row.exercise_base || row.exerciseBase),
+    dietPref: row.dietPref || _fromAppDiet(row.diet_preference || row.dietPreference),
     hasHypertension: conditions.includes('hypertension') || conditions.includes('高血压'),
     hasDiabetes: conditions.includes('diabetes') || conditions.includes('糖尿病'),
     hasHyperlipidemia: conditions.includes('hyperlipidemia') || conditions.includes('高血脂'),
     hasCVD: conditions.includes('cvd') || conditions.includes('心血管'),
     hasObesity: conditions.includes('obesity') || conditions.includes('肥胖'),
-    medicines: row.medications || '',
+    medicines: row.medications || row.medicines || '',
+    birthYear,
     updatedAt: new Date(Number(row.updated_at) || Date.now()).toISOString()
   };
 }
@@ -520,6 +659,23 @@ function _reminderFromRow(row, clientId, item) {
   };
 }
 
+function _reportFromRow(row, clientId, item) {
+  const reportTime = Number(row.report_time || item.clientUpdatedAt || Date.now());
+  const imagePath = _restoreReportImage(row, clientId || row.client_id || '');
+  return {
+    id: clientId || row.client_id || row.id || `cloud-report-${reportTime}`,
+    clientId: clientId || row.client_id || '',
+    imagePath,
+    reportTime: new Date(reportTime).toISOString(),
+    summary: row.summary || '',
+    rawText: row.raw_text || '',
+    structured: _parseJson(row.structured_json, {}),
+    provider: row.provider || '',
+    createdAt: new Date(Number(row.created_at || reportTime)).toISOString(),
+    updatedAt: new Date(Number(row.updated_at || item.clientUpdatedAt || Date.now())).toISOString()
+  };
+}
+
 function _upsert(key, entry) {
   const list = wx.getStorageSync(key) || [];
   const id = String(entry.clientId || entry.id);
@@ -528,6 +684,44 @@ function _upsert(key, entry) {
   else list.unshift(entry);
   wx.setStorageSync(key, list.slice(0, 500));
   return true;
+}
+
+function _readFileBase64(filePath) {
+  if (!filePath) return '';
+  try {
+    const fs = wx.getFileSystemManager();
+    return fs.readFileSync(filePath, 'base64') || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function _restoreReportImage(row, clientId) {
+  const imageBase64 = row.image_base64 || '';
+  if (!imageBase64 || !clientId) return row.image_path || '';
+  try {
+    const fs = wx.getFileSystemManager();
+    const ext = _fileExt(row.image_ext || row.image_path || '') || '.jpg';
+    const dir = `${wx.env.USER_DATA_PATH}/reports`;
+    try {
+      fs.accessSync(dir);
+    } catch (e) {
+      fs.mkdirSync(dir, true);
+    }
+    const filePath = `${dir}/${clientId}${ext}`;
+    fs.writeFileSync(filePath, imageBase64, 'base64');
+    return filePath;
+  } catch (e) {
+    return row.image_path || '';
+  }
+}
+
+function _fileExt(filePath) {
+  const raw = String(filePath || '');
+  const idx = raw.lastIndexOf('.');
+  if (idx < 0) return '.jpg';
+  const ext = raw.slice(idx).toLowerCase();
+  return ext.length > 10 ? '.jpg' : ext;
 }
 
 function _dedupeSyncItems(items) {
@@ -604,6 +798,14 @@ function _fromAppGoal(v) {
   }[v] || '综合调理';
 }
 
+function _fromProfileGoal(v) {
+  const s = String(v || '');
+  if (s === 'fat_loss' || s === 'glucose_control' || s === 'bp_control' || s === 'lipid_control' || s === 'maintain') {
+    return _fromAppGoal(s);
+  }
+  return s || '综合调理';
+}
+
 function _toAppExercise(v) {
   const s = String(v || '');
   if (s === 'moderate' || s.includes('中度')) return 'moderate';
@@ -670,6 +872,32 @@ function _parseJson(raw, fallback) {
   }
 }
 
+function _normalizePlainRow(row) {
+  if (!row) return {};
+  if (typeof row === 'string') return _parseJson(row, {});
+  if (typeof row !== 'object') return {};
+
+  const nested =
+    row.row ||
+    row.data ||
+    row.payload ||
+    row.plain ||
+    row.profile ||
+    row.record ||
+    null;
+  if (nested && typeof nested === 'object') {
+    return { ...row, ...nested };
+  }
+  if (typeof nested === 'string') {
+    return { ...row, ..._parseJson(nested, {}) };
+  }
+  if (row.payload_json && typeof row.payload_json === 'string') {
+    const parsedPayload = _parseJson(row.payload_json, null);
+    if (parsedPayload && typeof parsedPayload === 'object') return { ...row, ...parsedPayload };
+  }
+  return row;
+}
+
 function normalizeMnemonic(value) {
   return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
@@ -697,6 +925,7 @@ module.exports = {
   setMasterKeyFromMnemonic,
   hasMasterKey,
   clearMasterKey,
+  enqueueItem,
   enqueueIndicator,
   enqueueIndicatorDelete,
   enqueueAllIndicators,

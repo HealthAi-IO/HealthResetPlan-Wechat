@@ -17,6 +17,7 @@ Page({
     recentIndicators: [], todayClocks: [],
     hasProfile: false, hasCloudSync: false,
     needsSetup: false,
+    needsIndicators: false,
   },
 
   onShow() { this._load(); },
@@ -27,6 +28,8 @@ Page({
     const todayClocks = storage.clock.today();
     const todayPlans = storage.plans.today();
     const allInds = storage.indicators.getAll();
+    const hasProfile = this._hasUsableProfile(prof);
+    const needsIndicators = hasProfile && allInds.length === 0;
 
     // 打卡完成度
     const TARGET_TYPES = ['meal', 'exercise', 'medicine', 'weight'];
@@ -82,10 +85,20 @@ Page({
       hasPlan: !!(todayMealPlan || todayExercisePlan),
       recentIndicators,
       todayClocks: todayClocksFmt,
-      hasProfile:   !!prof,
-      needsSetup: !prof || !allInds.length,
+      hasProfile,
+      needsSetup: !hasProfile || needsIndicators,
+      needsIndicators,
       hasCloudSync: !!app.globalData.hasCloudSync,
     });
+  },
+
+  _hasUsableProfile(prof) {
+    if (!prof) return false;
+    const hasNickname = !!String(prof.nickname || '').trim();
+    const hasHeight = Number(prof.heightCm) > 0;
+    const hasWeight = Number(prof.weightKg) > 0;
+    const hasAge = Number(prof.age || prof.birthYear) > 0;
+    return hasNickname && hasHeight && hasWeight && hasAge;
   },
 
   onGeneratePlan() {

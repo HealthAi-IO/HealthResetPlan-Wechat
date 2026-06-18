@@ -10,6 +10,8 @@ Page({
     selectedProvider: 'doubao',
     aiGenerating: false,
     isEmpty: true,
+    aiPreviewVisible: false,
+    pendingAiPlan: null,
   },
 
   onShow() { this._load(); },
@@ -68,10 +70,10 @@ Page({
       return;
     }
     const prof = storage.profile.get();
-    if (!prof || !prof.heightCm || !prof.weightKg) {
+    if (!planUtil.hasUsableProfile()) {
       wx.showModal({
         title: '先完善档案',
-        content: 'AI 方案需要身高、体重、目标等基础信息。',
+        content: 'AI 方案需要年龄、身高、体重、目标等基础信息。',
         confirmText: '去完善',
         success: r => { if (r.confirm) wx.navigateTo({ url: '/pages/profile/index' }); }
       });
@@ -95,9 +97,12 @@ Page({
     try {
       const body = planUtil.buildAiPlanRequest(provider);
       const res = await http.post('/ai/plan/generate', body);
-      const applied = planUtil.applyAiPlanResult(res);
-      this._load();
-      wx.showToast({ title: `AI 已生成 ${applied.count} 条`, icon: 'success' });
+      const parsed = planUtil.parseAiPlanResult(res);
+      this.setData({
+        pendingAiPlan: parsed,
+        aiPreviewVisible: true,
+      });
+      wx.showToast({ title: parsed.executable ? 'AI 方案已生成' : '请查看生成结果', icon: parsed.executable ? 'success' : 'none' });
     } catch (err) {
       if (!storage.plans.getAll().length) {
         planUtil.generateWeekly();
@@ -107,6 +112,40 @@ Page({
     } finally {
       wx.hideLoading();
       this.setData({ aiGenerating: false });
+    }
+  },
+
+  onCloseAiPreview() {
+    this.setData({ aiPreviewVisible: false });
+  },
+
+  onRegenerateAiPlan() {
+    this.setData({ aiPreviewVisible: false, pendingAiPlan: null });
+    this.onAiGenerate();
+  },
+
+  onApplyAiPlan() {
+    const pending = this.data.pendingAiPlan;
+    if (!pending || !pending.executable) {
+      wx.showToast({ title: '当前 AI 方案无法应用，请重新生成', icon: 'none' });
+      return;
+    }
+
+    try {
+      const applied = planUtil.applyAiPlanResult(pending);
+      this.setData({ aiPreviewVisible: false, pendingAiPlan: null });
+      this._load();
+      wx.showModal({
+        title: '方案已应用',
+        content: `已写入 ${applied.count} 条计划，并生成 ${applied.reminderCount} 条提醒。`,
+        confirmText: '去打卡',
+        cancelText: '留在计划',
+        success: r => {
+          if (r.confirm) wx.switchTab({ url: '/pages/clock/index' });
+        }
+      });
+    } catch (err) {
+      wx.showToast({ title: err.message || '应用失败', icon: 'none' });
     }
   },
 });

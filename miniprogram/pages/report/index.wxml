@@ -1,8 +1,7 @@
 <view class="container">
-
   <view class="hero">
     <view class="hero-title">检查报告 OCR</view>
-    <view class="hero-sub muted">上传体检、血压、血脂或血糖报告图片，AI 自动抽取可导入的健康指标。</view>
+    <view class="hero-sub muted">上传体检、血压、血脂或血糖报告图片，AI 会提取指标并保存到最近报告。</view>
   </view>
 
   <view class="upload-card">
@@ -15,9 +14,9 @@
     <view class="preview-wrap" wx:else>
       <image class="preview" src="{{image}}" mode="widthFix" bindtap="onPreviewImage" />
       <view class="preview-actions">
-        <button class="ghost" bindtap="onChooseImage">重选</button>
+        <button class="ghost" bindtap="onChooseImage">重新选择</button>
         <button class="solid {{loading ? 'disabled' : ''}}" bindtap="onUpload" disabled="{{loading}}">
-          {{loading ? '识别中…' : '开始识别'}}
+          {{loading ? '识别中...' : '开始识别'}}
         </button>
       </view>
     </view>
@@ -48,18 +47,69 @@
   </view>
 
   <view class="history-card" wx:if="{{history.length}}">
-    <view class="hist-title">最近报告</view>
-    <view class="hist-row" wx:for="{{history}}" wx:key="id">
-      <image class="hist-thumb" src="{{item.thumb}}" mode="aspectFill" />
+    <view class="hist-head">
+      <view class="hist-title">最近报告</view>
+      <view class="hist-total muted">共 {{history.length}} 份</view>
+    </view>
+    <view class="hist-row" wx:for="{{history}}" wx:key="clientId" data-id="{{item.clientId}}" bindtap="onOpenHistory">
+      <image class="hist-thumb" src="{{item.imagePath}}" mode="aspectFill" />
       <view class="hist-body">
-        <view class="hist-name">{{item.name}}</view>
-        <view class="hist-time muted">{{item.time}}</view>
+        <view class="hist-name">{{item.title}}</view>
+        <view class="hist-time muted">{{item.timeLabel}}</view>
+        <view class="hist-provider muted" wx:if="{{item.provider}}">{{item.provider}}</view>
       </view>
-      <view class="hist-count">{{item.count}} 项</view>
+      <view class="hist-side">
+        <view class="hist-count">{{item.indicatorCount}} 项</view>
+        <button class="hist-delete" size="mini" data-id="{{item.clientId}}" bindtap="onDeleteHistory">删除</button>
+      </view>
     </view>
   </view>
 
   <view class="tip muted">
-    OCR 调用云端视觉模型，识别结果仅用于辅助录入；导入前请核对数值和单位。
+    OCR 识别结果用于辅助录入，请在导入前核对数值和单位。最近报告支持删除，也可以点开查看原图、指标和识别原文。
+  </view>
+
+  <view class="detail-mask" wx:if="{{detailVisible}}" bindtap="onCloseDetail"></view>
+  <view class="detail-panel" wx:if="{{detailVisible}}">
+    <view class="detail-handle"></view>
+    <view class="detail-head">
+      <view>
+        <view class="detail-title">报告详情</view>
+        <view class="detail-meta muted">{{activeReport.timeLabel}}{{activeReport.provider ? ' · ' + activeReport.provider : ''}}</view>
+      </view>
+      <view class="detail-close" bindtap="onCloseDetail">关闭</view>
+    </view>
+
+    <scroll-view scroll-y class="detail-scroll">
+      <view class="detail-section" wx:if="{{activeReport.imagePath}}">
+        <view class="detail-section-title">报告原图</view>
+        <image class="detail-image" src="{{activeReport.imagePath}}" mode="widthFix" bindtap="onPreviewHistoryImage" />
+      </view>
+
+      <view class="detail-section" wx:if="{{activeReport.title}}">
+        <view class="detail-section-title">摘要</view>
+        <view class="detail-summary">{{activeReport.title}}</view>
+      </view>
+
+      <view class="detail-section">
+        <view class="detail-section-title">识别指标</view>
+        <view class="detail-empty muted" wx:if="{{!activeReport.indicators.length}}">这份报告暂未识别出具体指标。</view>
+        <view class="detail-indicator" wx:for="{{activeReport.indicators}}" wx:key="id">
+          <view class="detail-indicator-top">
+            <view class="detail-indicator-name">{{item.name}}</view>
+            <view class="detail-indicator-value">{{item.value}} {{item.unit}}</view>
+          </view>
+          <view class="detail-indicator-bottom">
+            <view class="detail-indicator-range muted" wx:if="{{item.referenceRange}}">参考范围：{{item.referenceRange}}</view>
+            <view class="detail-status {{item.statusClass}}">{{item.statusLabel}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="detail-section" wx:if="{{activeReport.rawText}}">
+        <view class="detail-section-title">识别原文</view>
+        <view class="detail-raw">{{activeReport.rawText}}</view>
+      </view>
+    </scroll-view>
   </view>
 </view>

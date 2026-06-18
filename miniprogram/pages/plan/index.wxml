@@ -70,4 +70,61 @@
   </view>
 
   <view style="height:40rpx"></view>
+
+  <view class="ai-mask" wx:if="{{aiPreviewVisible}}" bindtap="onCloseAiPreview"></view>
+  <view class="ai-panel" wx:if="{{aiPreviewVisible}}">
+    <view class="ai-handle"></view>
+    <view class="ai-head">
+      <view>
+        <view class="ai-title">AI 健康方案</view>
+        <view class="ai-provider muted">{{pendingAiPlan.provider}}</view>
+      </view>
+      <view class="ai-close" bindtap="onCloseAiPreview">关闭</view>
+    </view>
+
+    <scroll-view scroll-y class="ai-scroll">
+      <view class="ai-summary">{{pendingAiPlan.summary}}</view>
+      <view class="ai-meta-row" wx:if="{{pendingAiPlan.keyFocus || pendingAiPlan.targetCalories}}">
+        <view class="ai-pill" wx:if="{{pendingAiPlan.keyFocus}}">重点：{{pendingAiPlan.keyFocus}}</view>
+        <view class="ai-pill" wx:if="{{pendingAiPlan.targetCalories}}">目标：{{pendingAiPlan.targetCalories}} kcal/天</view>
+      </view>
+      <view class="ai-risk" wx:if="{{pendingAiPlan.riskAlert}}">{{pendingAiPlan.riskAlert}}</view>
+
+      <view class="ai-invalid" wx:if="{{!pendingAiPlan.executable}}">
+        <view class="ai-invalid-title">暂时无法直接应用</view>
+        <view class="ai-invalid-text">{{pendingAiPlan.invalidMessage}}</view>
+      </view>
+
+      <view class="ai-raw" wx:if="{{pendingAiPlan.rawPreview}}">
+        <view class="ai-block-title measurement">原始返回</view>
+        <view class="ai-raw-text">{{pendingAiPlan.rawPreview}}</view>
+      </view>
+
+      <view class="ai-day" wx:for="{{pendingAiPlan.previewDays}}" wx:key="id">
+        <view class="ai-day-title">{{item.dayLabel}}</view>
+        <view class="ai-block" wx:if="{{item.mealRows.length}}">
+          <view class="ai-block-title meal">饮食</view>
+          <view class="ai-meal-row" wx:for="{{item.mealRows}}" wx:for-item="meal" wx:key="slot">
+            <text class="ai-meal-slot">{{meal.slot}}</text>
+            <text>{{meal.text}}</text>
+          </view>
+        </view>
+        <view class="ai-block" wx:if="{{item.exerciseSummary}}">
+          <view class="ai-block-title exercise">运动</view>
+          <view class="ai-text">{{item.exerciseSummary}}</view>
+        </view>
+        <view class="ai-block" wx:if="{{item.reminders.length}}">
+          <view class="ai-block-title measurement">提醒</view>
+          <view class="ai-text" wx:for="{{item.reminders}}" wx:for-item="reminder" wx:key="*this">· {{reminder}}</view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="ai-actions">
+      <button class="ai-secondary" bindtap="onRegenerateAiPlan">重新生成</button>
+      <button class="ai-primary {{!pendingAiPlan.executable ? 'disabled' : ''}}" bindtap="onApplyAiPlan" disabled="{{!pendingAiPlan.executable}}">
+        {{pendingAiPlan.executable ? '应用方案' : '无法应用'}}
+      </button>
+    </view>
+  </view>
 </scroll-view>

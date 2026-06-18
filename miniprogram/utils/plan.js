@@ -60,6 +60,13 @@ function generateWeekly() {
   return list;
 }
 
+function hasUsableProfile() {
+  const prof = storage.profile.get() || {};
+  return Number(prof.heightCm) > 0 &&
+    Number(prof.weightKg) > 0 &&
+    Number(prof.age || prof.birthYear) > 0;
+}
+
 function buildAiPlanRequest(provider) {
   const prof = storage.profile.get() || {};
   const height = Number(prof.heightCm) || 0;
@@ -81,7 +88,7 @@ function buildAiPlanRequest(provider) {
 
   return {
     ...(provider ? { provider } : {}),
-    age: Number(prof.age) || 0,
+    age: Number(prof.age) || (Number(prof.birthYear) > 1900 ? new Date().getFullYear() - Number(prof.birthYear) : 0),
     gender: prof.gender === '女' || prof.gender === 1 ? 'female' : 'male',
     heightCm: height,
     weightKg: weight,
@@ -97,19 +104,42 @@ function buildAiPlanRequest(provider) {
   };
 }
 
-function applyAiPlanResult(result) {
+function parseAiPlanResult(result) {
   const plan = parseAiPlanJson(result && result.rawJson);
   const days = Array.isArray(plan.days) ? plan.days.filter(d => d && typeof d === 'object') : [];
+  const provider = (result && result.provider) || 'ai';
+  const rawJson = text(result && result.rawJson);
+  return {
+    provider,
+    rawJson,
+    plan,
+    summary: text(plan.summary) || '方案已生成',
+    keyFocus: text(plan.keyFocus),
+    riskAlert: text(plan.riskAlert),
+    targetCalories: number(plan.targetCalories),
+    days,
+    executable: days.length === 7,
+    invalidMessage: days.length === 7 ? '' : invalidAiPlanMessage(rawJson),
+    rawPreview: rawJson.length > 1200 ? `${rawJson.slice(0, 1200)}...` : rawJson,
+    previewDays: days.slice(0, 7).map((day, index) => decorateAiDay(day, index)),
+  };
+}
+
+function applyAiPlanResult(result) {
+  const parsed = result && result.plan ? result : parseAiPlanResult(result);
+  const plan = parsed.plan || {};
+  const days = parsed.days || [];
   if (days.length !== 7) {
     throw new Error('AI 返回格式不完整，未能转换为 7 天计划');
   }
 
   const now = Date.now();
   const today = new Date();
-  const provider = (result && result.provider) || 'ai';
+  const provider = parsed.provider || 'ai';
   const keyFocus = text(plan.keyFocus);
   const targetCalories = number(plan.targetCalories);
   const list = [];
+  const reminderItems = [];
 
   for (let i = 0; i < 7; i++) {
     const d = new Date(today);
@@ -118,11 +148,11 @@ function applyAiPlanResult(result) {
     const day = days[i] || {};
     const diet = objectMap(day.diet);
     const exercise = objectMap(day.exercise);
-    const reminders = stringList(day.reminders);
+    const dayReminders = stringList(day.reminders);
 
     const mealPayload = aiMealPayload(diet, keyFocus, targetCalories);
     const exercisePayload = aiExercisePayload(exercise);
-    const measurementPayload = aiMeasurementPayload(reminders);
+    const measurementPayload = aiMeasurementPayload(dayReminders);
 
     list.push({
       id: `ai-${now}-${i}-meal`,
@@ -151,14 +181,77 @@ function applyAiPlanResult(result) {
       aiProvider: provider,
       aiModel: 'ai-plan-json'
     });
+
+    reminderItems.push(...aiReminderItems({
+      date: d,
+      dayIndex: i + 1,
+      diet,
+      exercise,
+      reminderTexts: dayReminders,
+    }));
   }
 
   storage.plans.saveAll(list);
+  storage.reminders.replaceAiPlan(reminderItems);
   return {
     provider,
     summary: text(plan.summary),
     keyFocus,
-    count: list.length
+    count: list.length,
+    reminderCount: reminderItems.length
+  };
+}
+
+function decorateAiDay(day, index) {
+  const diet = objectMap(day.diet);
+  const exercise = objectMap(day.exercise);
+  const reminderTexts = remindersForDay(day.reminders);
+  const mealRows = [
+    { slot: '早餐', text: _listTextForPreview(diet.breakfast) },
+    { slot: '午餐', text: _listTextForPreview(diet.lunch) },
+    { slot: '晚餐', text: _listTextForPreview(diet.dinner) },
+    { slot: '加餐', text: _listTextForPreview(diet.snack) },
+  ].filter(row => row.text);
+
+  return {
+    id: `ai-preview-${index}`,
+    dayLabel: day.weekDay || `第 ${index + 1} 天`,
+    mealRows,
+    exerciseSummary: aiExercisePayload(exercise).summary,
+    reminders: reminderTexts,
+  };
+}
+
+function aiReminderItems({ date, dayIndex, diet, exercise, reminderTexts }) {
+  const items = [];
+  const breakfast = stringList(diet.breakfast);
+  const lunch = stringList(diet.lunch);
+  const dinner = stringList(diet.dinner);
+  const exerciseSummary = aiExercisePayload(exercise).summary;
+  if (breakfast.length) items.push(_reminderItem('meal', date, 8, 0, `第 ${dayIndex} 天早餐：${breakfast.join('；')}`));
+  if (lunch.length) items.push(_reminderItem('meal', date, 12, 0, `第 ${dayIndex} 天午餐：${lunch.join('；')}`));
+  if (dinner.length) items.push(_reminderItem('meal', date, 18, 0, `第 ${dayIndex} 天晚餐：${dinner.join('；')}`));
+  if (exerciseSummary) items.push(_reminderItem('exercise', date, 19, 30, `第 ${dayIndex} 天运动：${exerciseSummary}`));
+  reminderTexts.slice(0, 3).forEach((reminder, idx) => {
+    items.push(_reminderItem(inferReminderType(reminder), date, 20, 30 + idx, `第 ${dayIndex} 天提醒：${reminder}`));
+  });
+  return items;
+}
+
+function _reminderItem(type, date, hour, minute, note) {
+  const remindAt = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute);
+  return {
+    id: `ai-reminder-${remindAt.getTime()}-${Math.random().toString(36).slice(2, 7)}`,
+    type,
+    label: reminderLabel(type),
+    note,
+    hour,
+    minute,
+    remindAt: remindAt.toISOString(),
+    source: 'ai-plan',
+    channel: 'ai-plan',
+    status: 'pending',
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -256,6 +349,33 @@ function aiMeasurementPayload(reminders) {
   };
 }
 
+function remindersForDay(raw) {
+  return stringList(raw);
+}
+
+function inferReminderType(value) {
+  const s = text(value);
+  if (s.includes('血压')) return 'bp';
+  if (s.includes('血糖')) return 'glucose';
+  if (s.includes('体重') || s.includes('称重')) return 'weight';
+  if (s.includes('运动') || s.includes('快走') || s.includes('步行')) return 'exercise';
+  if (s.includes('药')) return 'medicine';
+  if (s.includes('水')) return 'water';
+  return 'meal';
+}
+
+function reminderLabel(type) {
+  return {
+    meal: '饮食提醒',
+    exercise: '运动提醒',
+    medicine: '用药提醒',
+    weight: '称重提醒',
+    water: '饮水提醒',
+    bp: '血压提醒',
+    glucose: '血糖提醒',
+  }[type] || '健康提醒';
+}
+
 function dateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -288,9 +408,24 @@ function objectMap(raw) {
   return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
 }
 
+function _listTextForPreview(raw) {
+  if (Array.isArray(raw)) return raw.map(text).filter(Boolean).join(' / ');
+  return text(raw);
+}
+
+function invalidAiPlanMessage(raw) {
+  if (!raw) return 'AI 没有返回可解析的 7 天计划。';
+  if (raw.indexOf('"days"') >= 0 && raw.trim().slice(-1) !== '}') {
+    return 'AI 返回内容可能被截断，请重新生成一次。';
+  }
+  return 'AI 返回格式与计划模板不一致，可继续对话或重新生成。';
+}
+
 module.exports = {
   generateWeekly,
+  hasUsableProfile,
   buildAiPlanRequest,
+  parseAiPlanResult,
   applyAiPlanResult,
   parseAiPlanJson
 };
