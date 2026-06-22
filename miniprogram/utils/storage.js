@@ -118,6 +118,10 @@ const reminders = {
   },
   add(item) {
     item.id = item.id || Date.now();
+    item.channel = item.channel || 'local';
+    item.status = item.status || 'pending';
+    item.updatedAt = item.updatedAt || new Date().toISOString();
+    item.createdAt = item.createdAt || item.updatedAt;
     const list = this.getAll();
     list.push(item);
     _set(K.REMINDERS, list);

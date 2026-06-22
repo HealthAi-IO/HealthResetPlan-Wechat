@@ -28,14 +28,18 @@
 
   <!-- 每日计划 -->
   <view class="day-card" wx:for="{{plans}}" wx:key="date">
-    <view class="day-header">
+    <view class="day-header" data-date="{{item.date}}" bindtap="onToggleDay">
       <view class="day-label">{{item.dateLabel}}</view>
-      <view class="day-count muted">{{item.items.length}} 条</view>
+      <view class="day-header-right">
+        <view class="day-count muted">{{item.items.length}} 条</view>
+        <view class="day-toggle muted">{{item.expanded ? '收起' : '展开'}}</view>
+      </view>
     </view>
 
-    <block wx:for="{{item.items}}" wx:for-item="plan" wx:key="id">
+    <block wx:if="{{item.expanded}}">
+      <block wx:for="{{item.items}}" wx:for-item="plan" wx:key="id">
       <!-- 饮食 -->
-      <view class="plan-item meal-item" wx:if="{{plan.type === 'meal'}}">
+        <view class="plan-item meal-item" wx:if="{{plan.type === 'meal'}}">
         <view class="plan-header-row">
           <text class="plan-tag meal-tag">🍽 饮食计划</text>
         </view>
@@ -66,7 +70,9 @@
         <view class="plan-summary">{{plan.summary}}</view>
         <view wx:for="{{plan.measureItems}}" wx:for-item="it" wx:key="*this" class="mea-item-row muted">· {{it}}</view>
       </view>
+      </block>
     </block>
+    <view class="day-preview muted" wx:else>点击展开查看当天饮食、运动和测量安排</view>
   </view>
 
   <view style="height:40rpx"></view>

@@ -18,7 +18,10 @@
 .day-card { background: #fff; border-radius: 20rpx; padding: 28rpx; margin-bottom: 20rpx; box-shadow: 0 2rpx 12rpx rgba(15,23,42,.05); }
 .day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx; border-bottom: 1rpx solid #F3F4F6; padding-bottom: 14rpx; }
 .day-label { font-size: 28rpx; font-weight: 800; }
+.day-header-right { display: flex; align-items: center; gap: 16rpx; }
 .day-count { font-size: 22rpx; }
+.day-toggle { font-size: 22rpx; font-weight: 700; }
+.day-preview { font-size: 23rpx; line-height: 1.6; }
 
 .plan-item { border-radius: 14rpx; padding: 16rpx; margin-bottom: 12rpx; }
 .meal-item { background: rgba(255,152,0,.06); }

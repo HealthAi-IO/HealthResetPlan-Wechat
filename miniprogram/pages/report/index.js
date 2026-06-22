@@ -26,6 +26,8 @@ Page({
     reportSummary: '',
     reportProvider: '',
     reportRawText: '',
+    summaryExpanded: false,
+    detailRawExpanded: false,
     history: [],
     activeReport: null,
     detailVisible: false,
@@ -55,6 +57,7 @@ Page({
           reportSummary: '',
           reportProvider: '',
           reportRawText: '',
+          summaryExpanded: false,
         });
       },
     });
@@ -111,6 +114,7 @@ Page({
         reportSummary: record.summary,
         reportProvider: record.provider,
         reportRawText: record.rawText,
+        summaryExpanded: false,
       });
     } catch (err) {
       console.error('[report.ocr]', err);
@@ -162,6 +166,7 @@ Page({
       reportSummary: '',
       reportProvider: '',
       reportRawText: '',
+      summaryExpanded: false,
     });
   },
 
@@ -174,6 +179,7 @@ Page({
     this.setData({
       activeReport: detail,
       detailVisible: true,
+      detailRawExpanded: false,
     });
   },
 
@@ -181,7 +187,16 @@ Page({
     this.setData({
       activeReport: null,
       detailVisible: false,
+      detailRawExpanded: false,
     });
+  },
+
+  onToggleSummary() {
+    this.setData({ summaryExpanded: !this.data.summaryExpanded });
+  },
+
+  onToggleDetailRaw() {
+    this.setData({ detailRawExpanded: !this.data.detailRawExpanded });
   },
 
   onPreviewHistoryImage() {

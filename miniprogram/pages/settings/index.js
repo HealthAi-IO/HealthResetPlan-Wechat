@@ -1,12 +1,14 @@
 const http = require('../../utils/http');
 const storage = require('../../utils/storage');
 const config = require('../../utils/config');
+const sync = require('../../utils/sync');
 
 Page({
   data: {
     isLoggedIn: false,
     nickname: '', avatarSrc: '',
     version: `v${config.APP_VERSION}`,
+    syncStatusText: '先登录后可使用',
   },
 
   onShow() { this._load(); },
@@ -18,7 +20,15 @@ Page({
       isLoggedIn: app.isLoggedIn(),
       nickname:   prof.nickname || (app.globalData.userId ? '已登录用户' : ''),
       avatarSrc:  this._avatarSrc(app),
+      syncStatusText: this._syncStatusText(),
     });
+  },
+
+  _syncStatusText() {
+    const s = sync.status();
+    if (!s.loggedIn) return '先登录后可使用';
+    if (!s.hasKey) return '待恢复手机端助记词';
+    return `已就绪 · 待同步 ${s.queueLen} 条`;
   },
 
   _avatarSrc(app) {

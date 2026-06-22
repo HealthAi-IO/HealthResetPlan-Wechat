@@ -5,6 +5,56 @@
   background: #f7faf9;
 }
 
+.hero-card {
+  padding: 28rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #fff1f5 0%, #eef7ff 100%);
+  box-shadow: 0 10rpx 26rpx rgba(15, 23, 42, 0.05);
+}
+
+.hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.hero-title {
+  color: #1f2937;
+  font-size: 36rpx;
+  font-weight: 800;
+}
+
+.hero-sub {
+  margin-top: 10rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 1.6;
+}
+
+.hero-badge {
+  flex-shrink: 0;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.hero-badge.idle {
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.hero-badge.warn {
+  color: #b76e00;
+  background: #fff4d8;
+}
+
+.hero-badge.ok {
+  color: #117a48;
+  background: #e9f9ef;
+}
+
 .muted {
   color: #7b8491;
 }
@@ -12,13 +62,6 @@
 .strong {
   font-weight: 700;
   color: #1f2937;
-}
-
-.ellipsis {
-  max-width: 360rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .status-card {
@@ -63,14 +106,66 @@
 }
 
 .guide-title {
-  margin-bottom: 14rpx;
   color: #0b83bd;
   font-size: 30rpx;
   font-weight: 800;
 }
 
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.section-arrow {
+  flex-shrink: 0;
+  color: #0b83bd;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.guide-summary {
+  margin-top: 14rpx;
+  color: #425466;
+  font-size: 24rpx;
+  line-height: 1.65;
+}
+
 .guide-line {
+  margin-top: 14rpx;
   color: #273548;
+  font-size: 25rpx;
+  line-height: 1.65;
+}
+
+.result-card {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #f8fbff;
+  border: 2rpx solid #d7e7f5;
+}
+
+.result-card.success {
+  background: #edf9f1;
+  border-color: #bfe7c9;
+}
+
+.result-card.warn {
+  background: #fff8e8;
+  border-color: #f1dca0;
+}
+
+.result-title {
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.result-body {
+  margin-top: 10rpx;
+  color: #4b5563;
   font-size: 25rpx;
   line-height: 1.65;
 }
@@ -83,6 +178,11 @@
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 }
 
+.danger-card {
+  border: 2rpx solid #ffd7d7;
+  background: #fffafa;
+}
+
 .card-title {
   font-size: 32rpx;
   font-weight: 800;
@@ -93,6 +193,43 @@
   margin-top: 8rpx;
   font-size: 24rpx;
   line-height: 1.55;
+}
+
+.step-tip {
+  margin-top: 18rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 16rpx;
+  background: #f4f9ff;
+  color: #35506b;
+  font-size: 23rpx;
+  line-height: 1.65;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18rpx;
+  margin-top: 20rpx;
+}
+
+.overview-item {
+  padding: 22rpx 20rpx;
+  border-radius: 20rpx;
+  background: #f8fbff;
+  border: 2rpx solid #edf2f7;
+}
+
+.overview-label {
+  color: #64748b;
+  font-size: 22rpx;
+}
+
+.overview-value {
+  margin-top: 10rpx;
+  color: #1f2937;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .body-text {
@@ -194,6 +331,17 @@
   border: 2rpx solid #e5eaf0;
 }
 
+.btn-danger {
+  height: 84rpx;
+  line-height: 84rpx;
+  border: none;
+  border-radius: 18rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #ffffff;
+  background: #e85d75;
+}
+
 .kv-row {
   display: flex;
   justify-content: space-between;
@@ -209,7 +357,7 @@
 }
 
 .tip {
-  margin-top: 24rpx;
+  margin-top: 16rpx;
   padding: 20rpx;
   border-radius: 16rpx;
   background: #fff7e6;
@@ -218,24 +366,34 @@
   line-height: 1.7;
 }
 
-.log-card {
+.tip-card {
   margin-top: 24rpx;
-  padding: 20rpx 24rpx;
-  background: #ffffff;
+  padding: 24rpx;
   border-radius: 24rpx;
+  background: #ffffff;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 }
 
-.log-line {
-  padding: 10rpx 0;
-  border-top: 2rpx dashed #e5e7eb;
-  font-size: 22rpx;
+.tip-title {
+  color: #1f2937;
+  font-size: 30rpx;
+  font-weight: 800;
 }
 
-.log-t {
-  padding-right: 12rpx;
+.muted-tip {
+  background: #f3f7fb;
+  color: #64748b;
 }
 
-.log-msg {
-  color: #374151;
+.member-btn {
+  width: 100%;
+  height: 84rpx;
+  margin-top: 24rpx;
+  line-height: 84rpx;
+  border: none;
+  border-radius: 18rpx;
+  background: #e8f2ff;
+  color: #0b83bd;
+  font-size: 28rpx;
+  font-weight: 700;
 }

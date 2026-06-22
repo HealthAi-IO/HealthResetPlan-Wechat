@@ -1,48 +1,110 @@
 <view class="container">
+  <view class="hero-card">
+    <view class="hero-top">
+      <view>
+        <view class="hero-title">云同步与密钥</view>
+        <view class="hero-sub">让小程序和手机端使用同一份加密健康数据</view>
+      </view>
+      <view class="hero-badge {{statusTone}}">{{statusLabel}}</view>
+    </view>
+  </view>
+
   <view class="status-card {{state.loggedIn && state.hasKey ? 'on' : ''}}">
     <view class="status-dot"></view>
     <view class="status-body">
-      <view class="status-title">{{state.loggedIn && state.hasKey ? '云同步已开启' : '云同步未开启'}}</view>
+      <view class="status-title">{{state.loggedIn && state.hasKey ? '已准备好多端同步' : '云同步尚未完成设置'}}</view>
       <view class="status-sub muted">
-        <block wx:if="{{!state.loggedIn}}">请先登录同一个账号</block>
-        <block wx:elif="{{!state.hasKey}}">生成新主密钥，或使用 APP 备份的助记词恢复</block>
-        <block wx:else>主密钥保存在本地，服务端无法读取明文</block>
+        <block wx:if="{{!state.loggedIn}}">请先登录与你手机端相同的账号</block>
+        <block wx:elif="{{!state.hasKey}}">请恢复手机端备份的同一组助记词，才能读取原来的云端数据</block>
+        <block wx:else>当前设备已具备同步条件，可与手机端使用同一份加密健康数据</block>
       </view>
     </view>
   </view>
 
   <view class="guide-card">
-    <view class="guide-title">云同步功能使用方法</view>
-    <view class="guide-line">1. 已在 APP 上传过数据：小程序必须恢复 APP 备份的同一组助记词。</view>
-    <view class="guide-line">2. 首次在小程序开通：生成主密钥，离线备份 24 个助记词，再立即推送。</view>
-    <view class="guide-line">3. 更换设备或重装后：登录同一个账号，恢复同一组助记词，再拉取云端。</view>
-    <view class="guide-line">4. 新生成的主密钥不能解密旧主密钥上传的数据。</view>
+    <view class="section-head" bindtap="onToggleGuide">
+      <view class="guide-title">和手机端关联怎么做</view>
+      <view class="section-arrow">{{guideExpanded ? '收起' : '展开'}}</view>
+    </view>
+    <view wx:if="{{guideExpanded}}">
+      <view class="guide-line">1. 旧手机先登录同一个账号，并确认已经完成云同步。</view>
+      <view class="guide-line">2. 如果旧手机已经备份过助记词，小程序必须恢复同一组助记词，不能重新生成新的主密钥。</view>
+      <view class="guide-line">3. 助记词恢复成功后，点击“拉取云端”，就能把手机端已上传的数据同步到小程序。</view>
+      <view class="guide-line">4. 小程序新增的本地数据也可以再同步回云端，供手机端继续使用。</view>
+    </view>
+    <view class="guide-summary" wx:else>先登录同一账号，再恢复手机端那一组助记词，最后拉取云端数据。</view>
+  </view>
+
+  <view class="result-card {{resultType}}" wx:if="{{resultMessage}}">
+    <view class="result-title">
+      {{resultType === 'success' ? '同步结果' : (resultType === 'warn' ? '注意事项' : '当前提示')}}
+    </view>
+    <view class="result-body">{{resultMessage}}</view>
   </view>
 
   <view class="card" wx:if="{{state.loggedIn}}">
-    <view class="card-title">生成主密钥</view>
-    <view class="card-sub muted">首次开通云同步时使用</view>
-    <view class="body-text">系统会在本地生成 32 字节 UMK，并写入小程序本地存储。服务端始终只看到密文。</view>
-    <button class="btn-solid single-btn" bindtap="onGenerateMasterKey" disabled="{{busy}}">
-      {{busy ? '处理中...' : '生成主密钥'}}
+    <view class="card-title">当前同步状态</view>
+    <view class="overview-grid">
+      <view class="overview-item">
+        <view class="overview-label">账号状态</view>
+        <view class="overview-value">{{state.loggedIn ? '已登录' : '未登录'}}</view>
+      </view>
+      <view class="overview-item">
+        <view class="overview-label">主密钥</view>
+        <view class="overview-value">{{state.hasKey ? '已恢复 / 已生成' : '未设置'}}</view>
+      </view>
+      <view class="overview-item">
+        <view class="overview-label">本地待同步</view>
+        <view class="overview-value">{{state.queueLen}} 条</view>
+      </view>
+      <view class="overview-item">
+        <view class="overview-label">最近同步</view>
+        <view class="overview-value muted">{{lastPushLabel}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{state.loggedIn && !state.hasKey}}">
+    <view class="card-title">恢复手机端助记词</view>
+    <view class="card-sub muted">如果你要读取手机端已经上传的云端数据，请把手机端备份过的 24 个助记词粘贴到这里。</view>
+    <view class="step-tip">下一步：粘贴手机 APP 当前正在使用的 24 个助记词，然后点下方按钮恢复。</view>
+    <textarea
+      class="textarea"
+      placeholder="输入手机端或小程序备份的 24 个助记词"
+      maxlength="-1"
+      auto-height="true"
+      value="{{mnemonic}}"
+      focus="{{restoreFocus}}"
+      bindinput="onMnemonicInput"
+    />
+    <button class="btn-solid single-btn" bindtap="onRestoreMnemonic" disabled="{{busy}}">
+      {{busy ? '恢复中...' : '恢复并读取云端数据'}}
     </button>
   </view>
 
-  <view class="card" wx:if="{{state.loggedIn}}">
-    <view class="card-title">助记词备份</view>
-    <view class="card-sub muted">请离线抄写，丢失后无法恢复云端密文</view>
+  <view class="card" wx:if="{{state.loggedIn && !state.hasKey}}">
+    <view class="card-title">首次开通云同步</view>
+    <view class="card-sub muted">只有在你没有任何旧设备云端数据时，才建议在小程序新生成主密钥。</view>
+    <view class="body-text">如果手机端已经上传过数据，请不要在这里生成新的主密钥，否则无法读取原来的加密数据。</view>
+    <button class="btn-ghost single-btn" bindtap="onGenerateMasterKey" disabled="{{busy}}">
+      {{busy ? '处理中...' : '生成新的主密钥'}}
+    </button>
+  </view>
 
-    <view wx:if="{{generatedMnemonic}}" class="mnemonic-box">
+  <view class="card" wx:if="{{generatedMnemonic}}">
+    <view class="card-title">新助记词备份</view>
+    <view class="card-sub muted">请离线保存。丢失后，使用这把密钥上传的云端数据将无法恢复。</view>
+
+    <view class="mnemonic-box">
       <view class="mnemonic-word" wx:for="{{generatedWords}}" wx:key="*this">
         {{index + 1}}. {{item}}
       </view>
     </view>
-    <view wx:else class="empty-box">生成主密钥后，助记词会显示在这里。</view>
 
-    <view class="btn-row" wx:if="{{generatedMnemonic}}">
+    <view class="btn-row">
       <button class="btn-ghost" bindtap="onCopyGeneratedMnemonic">复制助记词</button>
     </view>
-    <checkbox-group bindchange="onBackupConfirmChange" wx:if="{{generatedMnemonic}}">
+    <checkbox-group bindchange="onBackupConfirmChange">
       <label class="check-row">
         <checkbox value="confirmed" checked="{{backupConfirmed}}" />
         <text>我已离线备份助记词</text>
@@ -50,63 +112,42 @@
     </checkbox-group>
   </view>
 
-  <view class="card" wx:if="{{state.loggedIn}}">
-    <view class="card-title">恢复主密钥</view>
-    <view class="card-sub muted">更换设备、重装，或同步 APP 云端数据时使用</view>
-    <textarea
-      class="textarea"
-      placeholder="输入 APP 或小程序备份的 24 个助记词"
-      maxlength="-1"
-      auto-height="true"
-      value="{{mnemonic}}"
-      bindinput="onMnemonicInput"
-    />
-    <button class="btn-ghost single-btn" bindtap="onRestoreMnemonic" disabled="{{busy}}">
-      恢复到本地
+  <view class="card" wx:if="{{state.loggedIn && state.hasKey}}">
+    <view class="card-title">立即同步</view>
+    <view class="card-sub muted">恢复和手机端相同的主密钥后，拉取云端即可读取同一份数据。</view>
+    <view class="btn-row">
+      <button class="btn-solid" bindtap="onPull" disabled="{{busy}}">
+        {{busy ? '处理中...' : '拉取云端'}}
+      </button>
+      <button class="btn-ghost" bindtap="onPush" disabled="{{busy}}">
+        {{busy ? '处理中...' : '上传本地数据'}}
+      </button>
+    </view>
+  </view>
+
+  <view class="card danger-card" wx:if="{{state.loggedIn && state.hasKey}}">
+    <view class="card-title">更换助记词</view>
+    <view class="card-sub muted">如果手机 APP 已经换了新的助记词，请先清除当前主密钥，再重新恢复手机端新的 24 个助记词。</view>
+    <button class="btn-danger single-btn" bindtap="onClearKey">
+      清除当前主密钥并重新恢复
     </button>
   </view>
 
-  <view class="card" wx:if="{{state.loggedIn && state.hasKey}}">
-    <view class="card-title">同步操作</view>
-    <view class="kv-row">
-      <text>本地可推送</text>
-      <text class="strong">{{state.queueLen}} 条</text>
+  <view class="tip-card" wx:if="{{state.loggedIn}}">
+    <view class="section-head" bindtap="onToggleTips">
+      <view class="tip-title">同步提醒</view>
+      <view class="section-arrow">{{tipsExpanded ? '收起' : '展开'}}</view>
     </view>
-    <view class="kv-row">
-      <text>上次推送</text>
-      <text class="muted">{{lastPushLabel}}</text>
+    <view wx:if="{{tipsExpanded}}">
+      <view class="tip">推送 / 拉取需要账号拥有 cloud_sync 权益。没有权限时，可先进入会员中心查看。</view>
+      <view class="tip muted-tip" wx:if="{{state.hasKey}}">
+        如果你在手机端刚更新过数据，建议先在手机端点一次同步，再回到这里拉取云端。
+      </view>
     </view>
-    <view class="kv-row">
-      <text>设备 ID</text>
-      <text class="muted ellipsis">{{state.deviceId}}</text>
-    </view>
-    <view class="kv-row">
-      <text>密钥指纹</text>
-      <text class="muted ellipsis">{{state.keyFingerprint}}</text>
-    </view>
-    <view class="btn-row">
-      <button class="btn-solid" bindtap="onPush" disabled="{{busy}}">
-        {{busy ? '处理中...' : '立即推送'}}
-      </button>
-      <button class="btn-ghost" bindtap="onPull" disabled="{{busy}}">
-        {{busy ? '处理中...' : '拉取云端'}}
-      </button>
-    </view>
+    <view class="guide-summary" wx:else>这里会提示会员权限和先手机后小程序的同步顺序。</view>
   </view>
 
-  <view class="tip" wx:if="{{state.loggedIn && state.hasKey}}" bindtap="onGoMembership">
-    推送 / 拉取需要账号拥有 cloud_sync 权益。点击进入会员中心。
-  </view>
-
-  <view class="tip muted">
-    如果你想同步 APP 已上传的数据，请不要在小程序重新生成主密钥，必须粘贴 APP 原来备份的助记词。
-  </view>
-
-  <view class="log-card" wx:if="{{logs.length}}">
-    <view class="card-title">操作日志</view>
-    <view class="log-line" wx:for="{{logs}}" wx:key="t">
-      <text class="log-t muted">{{item.t}}</text>
-      <text class="log-msg">{{item.msg}}</text>
-    </view>
-  </view>
+  <button class="member-btn" bindtap="onGoMembership">
+    前往会员中心
+  </button>
 </view>

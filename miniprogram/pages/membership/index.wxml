@@ -46,6 +46,10 @@
     {{busy ? '处理中…' : (selectedPlan ? '微信支付 ' + selectedPlanPrice : '请选择套餐')}}
   </button>
 
+  <button class="btn-pay" wx:if="{{status.active}}" bindtap="onGoSync">
+    已开通，去同步数据
+  </button>
+
   <!-- 兑换码 -->
   <view class="redeem-card">
     <view class="redeem-title">🎁 使用兑换码</view>

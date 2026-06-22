@@ -1,5 +1,6 @@
 const storage = require('../../utils/storage');
 const sync = require('../../utils/sync');
+const config = require('../../utils/config');
 
 const CLOCK_TYPES = [
   { type: 'meal',     icon: '🍚', label: '饮食', hint: '例如"低盐便当 + 蒸鱼"', color: '#FB8C00' },
@@ -8,6 +9,13 @@ const CLOCK_TYPES = [
   { type: 'weight',   icon: '⚖️', label: '称重', hint: '输入体重 kg',            color: '#1E88E5' },
   { type: 'water',    icon: '💧', label: '饮水', hint: '例如"200ml 温水"',        color: '#29B6F6' },
 ];
+const CLOCK_LABELS = {
+  meal: '饮食打卡',
+  exercise: '运动打卡',
+  medicine: '用药打卡',
+  weight: '称重打卡',
+  water: '饮水打卡',
+};
 
 Page({
   data: {
@@ -15,6 +23,8 @@ Page({
     todayDone: 0, todayTotal: 0, todayPct: 0,
     records: [],
     reminders: [],
+    remindersExpanded: false,
+    reminderModeText: '优先使用小程序订阅消息提醒',
     // 记录备注弹窗
     modal: { show: false, type: '', icon: '', label: '', hint: '', note: '', isMedicine: false, medStatus: 'done' },
     // 称重弹窗
@@ -35,6 +45,7 @@ Page({
 
     const displayRecs = (todayRecs.length ? todayRecs : allRecs).slice(0, 20).map(r => ({
       ...r,
+      label: r.label || CLOCK_LABELS[r.type] || '打卡记录',
       timeLabel: _fmtTime(r.clockTime),
       isSkip: r.status === 'skip',
     }));
@@ -42,6 +53,7 @@ Page({
     const displayReminders = reminders.map(r => ({
       ...r,
       timeLabel: `${String(r.hour).padStart(2,'0')}:${String(r.minute).padStart(2,'0')}`,
+      channelLabel: r.channel === 'wechat_subscribe' ? '订阅消息' : '本地提醒',
     }));
 
     this.setData({
@@ -119,18 +131,25 @@ Page({
   },
 
   onReminderCancel()  { this.setData({ 'reminderModal.show': false }); },
-  onReminderConfirm() {
+  async onReminderConfirm() {
     const { type, label, note, hour, minute } = this.data.reminderModal;
+    const granted = await this._requestReminderSubscribe();
+    if (!granted) {
+      wx.showToast({ title: '你未同意订阅消息提醒', icon: 'none' });
+      return;
+    }
     storage.reminders.add({
       type,
       label: `${label}提醒`,
       note: note || `${label}提醒`,
       hour,
       minute,
+      channel: 'wechat_subscribe',
+      status: 'pending',
     });
     this.setData({ 'reminderModal.show': false });
     this._load();
-    wx.showToast({ title: '提醒规则已保存', icon: 'success' });
+    wx.showToast({ title: '订阅提醒已保存', icon: 'success' });
   },
 
   onDeleteReminder(e) {
@@ -146,6 +165,26 @@ Page({
           this._load();
         }
       }
+    });
+  },
+
+  onToggleReminders() {
+    this.setData({ remindersExpanded: !this.data.remindersExpanded });
+  },
+
+  _requestReminderSubscribe() {
+    const tmplIds = config.REMINDER_SUBSCRIBE_TEMPLATES || [];
+    if (!tmplIds.length) return Promise.resolve(true);
+
+    return new Promise(resolve => {
+      wx.requestSubscribeMessage({
+        tmplIds,
+        success: res => {
+          const granted = tmplIds.some(id => res[id] === 'accept');
+          resolve(granted);
+        },
+        fail: () => resolve(false),
+      });
     });
   },
 });

@@ -25,6 +25,7 @@
 
   <!-- 功能列表 -->
   <view class="section-card">
+    <view class="section-label">常用功能</view>
     <view class="cell" bindtap="onGoProfile">
       <view class="cell-icon">🗂️</view>
       <view class="cell-label">健康档案</view>
@@ -52,6 +53,7 @@
 
   <!-- 云同步 + 会员 -->
   <view class="section-card">
+    <view class="section-label">会员与同步</view>
     <view class="cell" bindtap="onGoMembership">
       <view class="cell-icon">👑</view>
       <view class="cell-label">会员中心</view>
@@ -60,13 +62,17 @@
     <view class="cell-divider"></view>
     <view class="cell" bindtap="onGoSync">
       <view class="cell-icon">🔐</view>
-      <view class="cell-label">端到端加密云同步</view>
+      <view class="cell-main">
+        <view class="cell-label">云同步与密钥</view>
+        <view class="cell-sub muted">{{syncStatusText}}</view>
+      </view>
       <view class="cell-arrow muted">›</view>
     </view>
   </view>
 
   <!-- 其他操作 -->
   <view class="section-card">
+    <view class="section-label">其他</view>
     <view class="cell" bindtap="onGoPrivacy">
       <view class="cell-icon">🔒</view>
       <view class="cell-label">隐私政策</view>

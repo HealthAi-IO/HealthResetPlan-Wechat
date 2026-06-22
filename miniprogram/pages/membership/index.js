@@ -103,6 +103,10 @@ Page({
 
   onRedeemInput(e) { this.setData({ redeemCode: e.detail.value }); },
 
+  onGoSync() {
+    wx.navigateTo({ url: '/pages/sync/index' });
+  },
+
   async onRedeem() {
     const code = (this.data.redeemCode || '').trim();
     if (!code) {

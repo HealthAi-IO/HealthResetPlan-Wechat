@@ -39,7 +39,10 @@
   <!-- 今日关键指标 -->
   <view class="card">
     <view class="card-header">
-      <view class="title-md">今日数据</view>
+      <view class="section-title-wrap">
+        <view class="title-md">今日数据</view>
+        <view class="section-sub muted">关键指标一眼看清</view>
+      </view>
       <view class="link" bindtap="onGoIndicators">+ 录入</view>
     </view>
     <view class="metrics-grid">
@@ -69,7 +72,10 @@
   <!-- 今日计划摘要 -->
   <view class="card">
     <view class="card-header">
-      <view class="title-md">今日计划</view>
+      <view class="section-title-wrap">
+        <view class="title-md">今日计划</view>
+        <view class="section-sub muted">饮食、运动与测量安排</view>
+      </view>
       <view class="link" bindtap="onGoPlan">全部计划</view>
     </view>
     <block wx:if="{{hasPlan}}">
@@ -77,14 +83,20 @@
         <view class="plan-icon">🍽</view>
         <view class="plan-body">
           <view class="plan-type">今日饮食</view>
-          <view class="plan-summary muted">{{todayMealPlan.summary}}</view>
+          <view class="plan-summary muted {{!mealSummaryExpanded && hasLongMealSummary ? 'summary-collapsed' : ''}}">{{todayMealPlan.summary}}</view>
+          <view class="summary-toggle" wx:if="{{hasLongMealSummary}}" data-type="meal" bindtap="onTogglePlanSummary">
+            {{mealSummaryExpanded ? '收起' : '展开'}}
+          </view>
         </view>
       </view>
       <view class="plan-row green-bg" wx:if="{{todayExercisePlan}}">
         <view class="plan-icon">🏋️</view>
         <view class="plan-body">
           <view class="plan-type">今日运动</view>
-          <view class="plan-summary muted">{{todayExercisePlan.summary}}</view>
+          <view class="plan-summary muted {{!exerciseSummaryExpanded && hasLongExerciseSummary ? 'summary-collapsed' : ''}}">{{todayExercisePlan.summary}}</view>
+          <view class="summary-toggle" wx:if="{{hasLongExerciseSummary}}" data-type="exercise" bindtap="onTogglePlanSummary">
+            {{exerciseSummaryExpanded ? '收起' : '展开'}}
+          </view>
         </view>
       </view>
     </block>
@@ -96,7 +108,10 @@
 
   <!-- 快捷入口 -->
   <view class="card">
-    <view class="title-md" style="margin-bottom:16rpx">快捷入口</view>
+    <view class="section-title-wrap" style="margin-bottom:16rpx">
+      <view class="title-md">快捷入口</view>
+      <view class="section-sub muted">常用功能都在这里</view>
+    </view>
     <view class="quick-grid">
       <view class="quick-item" bindtap="onGoProfile">
         <view class="quick-icon teal-bg">🗂</view>
@@ -136,7 +151,10 @@
   <!-- 最近指标 -->
   <view class="card" wx:if="{{recentIndicators.length > 0}}">
     <view class="card-header">
-      <view class="title-md">最近指标</view>
+      <view class="section-title-wrap">
+        <view class="title-md">最近指标</view>
+        <view class="section-sub muted">最近录入的健康变化</view>
+      </view>
       <view class="link" bindtap="onGoIndicators">全部</view>
     </view>
     <view class="ind-row" wx:for="{{recentIndicators}}" wx:key="id">
@@ -149,7 +167,10 @@
   <!-- 今日打卡 -->
   <view class="card" wx:if="{{todayClocks.length > 0}}">
     <view class="card-header">
-      <view class="title-md">今日打卡</view>
+      <view class="section-title-wrap">
+        <view class="title-md">今日打卡</view>
+        <view class="section-sub muted">今天已经完成的动作</view>
+      </view>
       <view class="link" bindtap="onGoClock">去打卡</view>
     </view>
     <view class="clock-row" wx:for="{{todayClocks}}" wx:key="id">
@@ -159,10 +180,14 @@
     </view>
   </view>
 
-  <!-- 云同步入口 -->
-  <view class="card sync-card" wx:if="{{!hasCloudSync}}" bindtap="onGoSettings">
-    <view class="title-md sync-title">🔐 开启端到端加密云同步</view>
-    <view class="muted">私钥保存在您的手机本地，云端只见密文</view>
+  <view class="card sync-card" bindtap="onGoSettings">
+    <view class="sync-top">
+      <view class="title-md sync-title">云同步与换机恢复</view>
+      <view class="sync-badge">{{syncStatusText}}</view>
+    </view>
+    <view class="muted">
+      {{hasCloudSync ? '登录同一账号后，可用助记词恢复手机端数据' : '开通会员后可与手机端同步同一份加密健康数据'}}
+    </view>
   </view>
 
   <view style="height:40rpx"></view>

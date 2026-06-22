@@ -32,8 +32,9 @@
 
   <!-- 新增提醒 -->
   <view class="card">
-    <view class="card-title">设置提醒</view>
-    <view class="card-sub muted">添加每日健康提醒</view>
+    <view class="card-title">订阅消息提醒</view>
+    <view class="card-sub muted">添加后会优先请求微信订阅消息授权，后续按提醒时间发送。</view>
+    <view class="mode-tip">{{reminderModeText}}</view>
     <view class="reminder-chips">
       <view class="reminder-chip" data-type="weight"   data-label="称重"   bindtap="onAddReminder">⚖️ 称重提醒</view>
       <view class="reminder-chip" data-type="meal"     data-label="饮食"   bindtap="onAddReminder">🍚 饮食提醒</view>
@@ -56,15 +57,22 @@
 
   <!-- 提醒规则 -->
   <view class="card" wx:if="{{reminders.length}}">
-    <view class="card-title">提醒规则</view>
-    <view class="reminder-item" wx:for="{{reminders}}" wx:key="id">
-      <view class="reminder-left">
-        <view class="reminder-name">{{item.label}}</view>
-        <view class="reminder-note muted">{{item.note}}</view>
-      </view>
-      <view class="reminder-right">
-        <view class="reminder-time">{{item.timeLabel}}</view>
-        <view class="reminder-del" data-id="{{item.id}}" bindtap="onDeleteReminder">✕</view>
+    <view class="section-head" bindtap="onToggleReminders">
+      <view class="card-title">提醒规则</view>
+      <view class="section-arrow muted">{{remindersExpanded ? '收起' : '展开'}}</view>
+    </view>
+    <view class="card-sub muted" wx:if="{{!remindersExpanded}}">已设置 {{reminders.length}} 条提醒，点击展开查看和删除。</view>
+    <view wx:if="{{remindersExpanded}}">
+      <view class="reminder-item" wx:for="{{reminders}}" wx:key="id">
+        <view class="reminder-left">
+          <view class="reminder-name">{{item.label}}</view>
+          <view class="reminder-note muted">{{item.note}}</view>
+          <view class="reminder-channel">{{item.channelLabel}}</view>
+        </view>
+        <view class="reminder-right">
+          <view class="reminder-time">{{item.timeLabel}}</view>
+          <view class="reminder-del" data-id="{{item.id}}" bindtap="onDeleteReminder">✕</view>
+        </view>
       </view>
     </view>
   </view>

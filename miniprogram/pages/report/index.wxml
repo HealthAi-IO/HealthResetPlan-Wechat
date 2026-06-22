@@ -23,8 +23,13 @@
   </view>
 
   <view class="summary-card" wx:if="{{reportSummary}}">
-    <view class="summary-title">识别摘要</view>
-    <view class="summary-text">{{reportSummary}}</view>
+    <view class="summary-head">
+      <view class="summary-title">识别摘要</view>
+      <view class="summary-toggle" wx:if="{{reportSummary.length > 40}}" bindtap="onToggleSummary">
+        {{summaryExpanded ? '收起' : '展开'}}
+      </view>
+    </view>
+    <view class="summary-text {{!summaryExpanded && reportSummary.length > 40 ? 'summary-text-collapsed' : ''}}">{{reportSummary}}</view>
     <view class="summary-meta muted">
       <text wx:if="{{reportDate}}">{{reportDate}}</text>
       <text wx:if="{{reportDate && reportProvider}}"> · </text>
@@ -107,8 +112,11 @@
       </view>
 
       <view class="detail-section" wx:if="{{activeReport.rawText}}">
-        <view class="detail-section-title">识别原文</view>
-        <view class="detail-raw">{{activeReport.rawText}}</view>
+        <view class="detail-section-head">
+          <view class="detail-section-title">识别原文</view>
+          <view class="summary-toggle" bindtap="onToggleDetailRaw">{{detailRawExpanded ? '收起' : '展开'}}</view>
+        </view>
+        <view class="detail-raw {{!detailRawExpanded ? 'detail-raw-collapsed' : ''}}">{{activeReport.rawText}}</view>
       </view>
     </scroll-view>
   </view>

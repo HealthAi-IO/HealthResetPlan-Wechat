@@ -1,10 +1,18 @@
 const storage = require('../../utils/storage');
 const planUtil = require('../../utils/plan');
+const sync = require('../../utils/sync');
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const TYPE_LABELS = {
   weight: '体重', bp: '血压', glucose: '血糖', heart_rate: '心率',
   lipid: '血脂', spo2: '血氧', sleep: '睡眠', steps: '步数', waist: '腰围', body_fat: '体脂'
+};
+const CLOCK_LABELS = {
+  meal: '饮食打卡',
+  exercise: '运动打卡',
+  medicine: '用药打卡',
+  weight: '称重打卡',
+  water: '饮水打卡',
 };
 
 Page({
@@ -14,10 +22,13 @@ Page({
     bmi: '--', bmiLevel: '--',
     latestBp: '--', latestWeight: '--', latestGlucose: '--',
     todayMealPlan: null, todayExercisePlan: null, hasPlan: false,
+    mealSummaryExpanded: false, exerciseSummaryExpanded: false,
+    hasLongMealSummary: false, hasLongExerciseSummary: false,
     recentIndicators: [], todayClocks: [],
     hasProfile: false, hasCloudSync: false,
     needsSetup: false,
     needsIndicators: false,
+    syncStatusText: '去设置',
   },
 
   onShow() { this._load(); },
@@ -59,6 +70,8 @@ Page({
     // 今日计划
     const todayMealPlan     = todayPlans.find(p => p.type === 'meal')     || null;
     const todayExercisePlan = todayPlans.find(p => p.type === 'exercise') || null;
+    const hasLongMealSummary = this._isLongText(todayMealPlan && todayMealPlan.summary);
+    const hasLongExerciseSummary = this._isLongText(todayExercisePlan && todayExercisePlan.summary);
 
     // 最近6条指标（带格式化）
     const recentIndicators = allInds.slice(0, 6).map(i => ({
@@ -71,10 +84,14 @@ Page({
     // 打卡记录格式化时间
     const todayClocksFmt = todayClocks.slice(0, 5).map(r => ({
       ...r,
+      label: r.label || CLOCK_LABELS[r.type] || '打卡记录',
       clockTime: _fmtTime(r.clockTime),
     }));
 
     const now = new Date();
+    const syncStatus = sync.status();
+    const syncStatusText = !syncStatus.loggedIn ? '先登录'
+      : (!syncStatus.hasKey ? '待恢复密钥' : '可同步');
     this.setData({
       nickname:    prof?.nickname || '朋友',
       todayLabel:  `${now.getMonth() + 1}月${now.getDate()}日 周${WEEKDAYS[now.getDay()]}`,
@@ -85,13 +102,27 @@ Page({
       latestBp, latestWeight, latestGlucose,
       todayMealPlan, todayExercisePlan,
       hasPlan: !!(todayMealPlan || todayExercisePlan),
+      hasLongMealSummary,
+      hasLongExerciseSummary,
       recentIndicators,
       todayClocks: todayClocksFmt,
       hasProfile,
       needsSetup: !hasProfile || needsIndicators,
       needsIndicators,
       hasCloudSync: !!app.globalData.hasCloudSync,
+      syncStatusText,
     });
+  },
+
+  onTogglePlanSummary(e) {
+    const { type } = e.currentTarget.dataset;
+    if (type === 'meal') {
+      this.setData({ mealSummaryExpanded: !this.data.mealSummaryExpanded });
+      return;
+    }
+    if (type === 'exercise') {
+      this.setData({ exerciseSummaryExpanded: !this.data.exerciseSummaryExpanded });
+    }
   },
 
   _hasUsableProfile(prof) {
@@ -126,6 +157,10 @@ Page({
   onGoSettings()   { wx.switchTab({ url: '/pages/settings/index' }); },
   onGoChat()       { wx.navigateTo({ url: '/pages/chat/index' }); },
   onGoReport()     { wx.navigateTo({ url: '/pages/report/index' }); },
+
+  _isLongText(value) {
+    return String(value || '').trim().length > 30;
+  },
 });
 
 function _fmtTime(iso) {

@@ -12,6 +12,7 @@ Page({
     isEmpty: true,
     aiPreviewVisible: false,
     pendingAiPlan: null,
+    expandedDates: [],
   },
 
   onShow() { this._load(); },
@@ -36,6 +37,7 @@ Page({
       date,
       dateLabel: _dateLabel(date),
       items: map[date].map(_decoratePlan),
+      expanded: this.data.expandedDates.includes(date),
     }));
 
     this.setData({
@@ -50,6 +52,17 @@ Page({
     const f = e.currentTarget.dataset.filter;
     const all = storage.plans.getAll().filter(p => p.type !== 'risk');
     this._updateView(storage.profile.get(), all, f);
+  },
+
+  onToggleDay(e) {
+    const { date } = e.currentTarget.dataset;
+    const current = this.data.expandedDates || [];
+    const expandedDates = current.includes(date)
+      ? current.filter(item => item !== date)
+      : current.concat(date);
+    this.setData({ expandedDates });
+    const all = storage.plans.getAll().filter(p => p.type !== 'risk');
+    this._updateView(storage.profile.get(), all, this.data.filter);
   },
 
   onGenerate() {

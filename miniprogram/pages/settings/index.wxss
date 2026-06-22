@@ -17,9 +17,12 @@
 .arrow { font-size: 36rpx; }
 
 .section-card { background: #fff; border-radius: 20rpx; padding: 0 20rpx; margin-bottom: 20rpx; box-shadow: 0 2rpx 12rpx rgba(15,23,42,.05); }
+.section-label { padding: 24rpx 8rpx 8rpx; color: #9CA3AF; font-size: 22rpx; font-weight: 700; letter-spacing: 1rpx; }
 .cell { display: flex; align-items: center; padding: 28rpx 8rpx; gap: 16rpx; }
 .cell-icon { font-size: 36rpx; width: 48rpx; text-align: center; flex-shrink: 0; }
-.cell-label { flex: 1; font-size: 28rpx; font-weight: 500; }
+.cell-main { flex: 1; min-width: 0; }
+.cell-label { font-size: 28rpx; font-weight: 500; }
+.cell-sub { margin-top: 6rpx; font-size: 22rpx; line-height: 1.5; }
 .cell-danger { color: #E53935; }
 .cell-arrow { font-size: 32rpx; }
 .cell-divider { height: 1rpx; background: #F3F4F6; margin: 0 8rpx; }
