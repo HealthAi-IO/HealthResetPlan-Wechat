@@ -593,10 +593,20 @@ function _profileFromRow(row) {
     hasHyperlipidemia: conditions.includes('hyperlipidemia') || conditions.includes('高血脂'),
     hasCVD: conditions.includes('cvd') || conditions.includes('心血管'),
     hasObesity: conditions.includes('obesity') || conditions.includes('肥胖'),
+    medicalHistory: _plainMedicalHistory(conditions),
     medicines: row.medications || row.medicines || '',
     birthYear,
     updatedAt: new Date(Number(row.updated_at) || Date.now()).toISOString()
   };
+}
+
+function _plainMedicalHistory(value) {
+  const conditionKeys = ['hypertension', 'diabetes', 'hyperlipidemia', 'cvd', 'obesity'];
+  return String(value || '')
+    .split(/[；;]/)
+    .map(item => item.trim())
+    .filter(item => item && !conditionKeys.includes(item.toLowerCase()))
+    .join('；');
 }
 
 function _indicatorFromRow(row, clientId, item) {

@@ -141,11 +141,13 @@
   <view class="section-card">
     <view class="section-header">
       <view>
-        <view class="section-title">当前用药</view>
-        <view class="section-desc">选填，AI 建议会避开明显冲突</view>
+        <view class="section-title">病史与用药</view>
+        <view class="section-desc">选填，与 APP 健康档案保持一致</view>
       </view>
       <view class="section-mark">04</view>
     </view>
+    <textarea class="form-textarea" placeholder="既往病史、过敏史或其他需要说明的情况"
+              value="{{form.medicalHistory}}" data-field="medicalHistory" bindinput="onInput" maxlength="500"></textarea>
     <textarea class="form-textarea" placeholder="例如：缬沙坦 80mg 每日一次、二甲双胍 0.5g 每日两次……"
               value="{{form.medicines}}" data-field="medicines" bindinput="onInput" maxlength="500"></textarea>
   </view>

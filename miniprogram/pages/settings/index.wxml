@@ -67,6 +67,18 @@
 
   <!-- 其他操作 -->
   <view class="section-card">
+    <view class="cell" bindtap="onGoPrivacy">
+      <view class="cell-icon">🔒</view>
+      <view class="cell-label">隐私政策</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+    <view class="cell-divider"></view>
+    <view class="cell" bindtap="onGoTerms">
+      <view class="cell-icon">📄</view>
+      <view class="cell-label">用户协议</view>
+      <view class="cell-arrow muted">›</view>
+    </view>
+    <view class="cell-divider"></view>
     <view class="cell" bindtap="onClearData">
       <view class="cell-icon">🗑️</view>
       <view class="cell-label cell-danger">清除本地数据</view>

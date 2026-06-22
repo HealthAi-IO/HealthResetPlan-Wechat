@@ -14,7 +14,7 @@ Page({
       goal: 0, activityLevel: 0, dietPref: 0,
       hasHypertension: false, hasDiabetes: false, hasHyperlipidemia: false,
       hasCVD: false, hasObesity: false,
-      medicines: '',
+      medicalHistory: '', medicines: '',
     },
     goalList:     GOAL_LIST,
     activityList: ACTIVITY_LIST,
@@ -55,6 +55,7 @@ Page({
           hasHyperlipidemia:!!prof.hasHyperlipidemia,
           hasCVD:           !!prof.hasCVD,
           hasObesity:       !!prof.hasObesity,
+          medicalHistory:   prof.medicalHistory || '',
           medicines:        prof.medicines || '',
         }
       }, () => this._refreshSummary());
@@ -66,7 +67,7 @@ Page({
         goal: 0, activityLevel: 0, dietPref: 0,
         hasHypertension: false, hasDiabetes: false, hasHyperlipidemia: false,
         hasCVD: false, hasObesity: false,
-        medicines: '',
+        medicalHistory: '', medicines: '',
       }
     }, () => this._refreshSummary());
   },
@@ -99,6 +100,7 @@ Page({
       hasHyperlipidemia: f.hasHyperlipidemia,
       hasCVD:            f.hasCVD,
       hasObesity:        f.hasObesity,
+      medicalHistory:    f.medicalHistory.trim(),
       medicines:         f.medicines,
       updatedAt:         new Date().toISOString(),
     };

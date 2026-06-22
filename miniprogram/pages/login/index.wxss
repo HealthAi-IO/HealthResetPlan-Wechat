@@ -49,6 +49,7 @@
 .form-input { flex: 1; font-size: 28rpx; color: #1F2937; }
 .form-eye { padding-left: 20rpx; font-size: 32rpx; }
 .form-tip { font-size: 22rpx; padding: 8rpx 4rpx 0; }
+.legal-link { color: #1e88e5; }
 
 /* 按钮 */
 .btn-primary {

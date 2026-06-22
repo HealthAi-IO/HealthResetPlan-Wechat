@@ -3,6 +3,7 @@
  */
 const app = getApp();
 let redirectingToLogin = false;
+let refreshingToken = null;
 
 function parseBody(body) {
   if (typeof body !== 'string') return body;
@@ -59,10 +60,10 @@ function normalizeFail(err) {
 }
 
 function request(method, path, data, extraHeaders = {}) {
-  return doRequest(method, app.globalData.baseUrl, path, data, extraHeaders);
+  return doRequest(method, app.globalData.baseUrl, path, data, extraHeaders, false);
 }
 
-function doRequest(method, baseUrl, path, data, extraHeaders = {}) {
+function doRequest(method, baseUrl, path, data, extraHeaders = {}, retried) {
   return new Promise((resolve, reject) => {
     wx.request({
       url: baseUrl + path,
@@ -81,6 +82,15 @@ function doRequest(method, baseUrl, path, data, extraHeaders = {}) {
         if (res.statusCode === 200 && body && body.code === 0) {
           resolve(body.data);
         } else {
+          if (isAuthExpired(res, body) && !retried && app.globalData.refreshToken) {
+            refreshAccessToken().then(() => {
+              doRequest(method, baseUrl, path, data, extraHeaders, true).then(resolve, reject);
+            }).catch(() => {
+              handleAuthExpired();
+              reject(normalizeError({ ...res, data: body }, '登录已过期，请重新登录'));
+            });
+            return;
+          }
           if (isAuthExpired(res, body)) {
             handleAuthExpired();
             reject(normalizeError({ ...res, data: body }, '登录已过期，请重新登录'));
@@ -98,7 +108,7 @@ function doRequest(method, baseUrl, path, data, extraHeaders = {}) {
   });
 }
 
-function uploadTo(baseUrl, path, filePath, name, formData) {
+function uploadTo(baseUrl, path, filePath, name, formData, retried = false) {
   return new Promise((resolve, reject) => {
     wx.uploadFile({
       url: baseUrl + path,
@@ -116,6 +126,15 @@ function uploadTo(baseUrl, path, filePath, name, formData) {
         if (res.statusCode === 200 && body && body.code === 0) {
           resolve(body.data);
         } else {
+          if (isAuthExpired(res, body) && !retried && app.globalData.refreshToken) {
+            refreshAccessToken().then(() => {
+              uploadTo(baseUrl, path, filePath, name, formData, true).then(resolve, reject);
+            }).catch(() => {
+              handleAuthExpired();
+              reject(normalizeError({ ...res, data: body }, '登录已过期，请重新登录'));
+            });
+            return;
+          }
           if (isAuthExpired(res, body)) {
             handleAuthExpired();
             reject(normalizeError({ ...res, data: body }, '登录已过期，请重新登录'));
@@ -131,6 +150,35 @@ function uploadTo(baseUrl, path, filePath, name, formData) {
       }
     });
   });
+}
+
+function refreshAccessToken() {
+  if (refreshingToken) return refreshingToken;
+  refreshingToken = new Promise((resolve, reject) => {
+    wx.request({
+      url: app.globalData.baseUrl + '/auth/refresh',
+      method: 'POST',
+      data: { refreshToken: app.globalData.refreshToken },
+      timeout: 15000,
+      header: { 'content-type': 'application/json', 'X-Platform': 'wechat' },
+      success: res => {
+        const body = parseBody(res.data);
+        const data = body && body.code === 0 ? body.data : null;
+        if (!data || !data.accessToken || !data.refreshToken) {
+          reject(normalizeError(res, '登录已过期，请重新登录'));
+          return;
+        }
+        app.setAuth({
+          userId: data.userId || app.globalData.userId,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken
+        });
+        resolve();
+      },
+      fail: reject
+    });
+  }).finally(() => { refreshingToken = null; });
+  return refreshingToken;
 }
 
 module.exports = {

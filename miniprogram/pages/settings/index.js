@@ -1,11 +1,12 @@
 const http = require('../../utils/http');
 const storage = require('../../utils/storage');
+const config = require('../../utils/config');
 
 Page({
   data: {
     isLoggedIn: false,
     nickname: '', avatarSrc: '',
-    version: 'v0.2.0',
+    version: `v${config.APP_VERSION}`,
   },
 
   onShow() { this._load(); },
@@ -32,6 +33,8 @@ Page({
   onGoChat()       { wx.navigateTo({ url: '/pages/chat/index' }); },
   onGoSync()       { wx.navigateTo({ url: '/pages/sync/index' }); },
   onGoMembership() { wx.navigateTo({ url: '/pages/membership/index' }); },
+  onGoPrivacy()    { wx.navigateTo({ url: '/pages/legal/index?type=privacy' }); },
+  onGoTerms()      { wx.navigateTo({ url: '/pages/legal/index?type=terms' }); },
 
   onChooseAvatar() {
     const app = getApp();
@@ -70,11 +73,19 @@ Page({
       content: '确定退出账号？本地数据不会删除。',
       confirmText: '退出',
       confirmColor: '#E53935',
-      success: r => {
+      success: async r => {
         if (r.confirm) {
-          getApp().clearAuth();
-          this._load();
-          wx.showToast({ title: '已退出登录', icon: 'none' });
+          const app = getApp();
+          const refreshToken = app.globalData.refreshToken;
+          try {
+            await http.post('/auth/logout', { refreshToken });
+          } catch (e) {
+            // 服务端不可用时仍允许退出本地账号。
+          } finally {
+            app.clearAuth();
+            this._load();
+            wx.showToast({ title: '已退出登录', icon: 'none' });
+          }
         }
       }
     });
@@ -88,7 +99,14 @@ Page({
       confirmColor: '#E53935',
       success: r => {
         if (r.confirm) {
-          const keys = ['hrp_indicators','hrp_clock_records','hrp_plans','hrp_reminders','hrp_profile'];
+          storage.reports.getAll().forEach(report => {
+            if (report.imagePath) wx.removeSavedFile({ filePath: report.imagePath });
+          });
+          const keys = [
+            'hrp_indicators', 'hrp_clock_records', 'hrp_plans', 'hrp_reminders',
+            'hrp_profile', 'hrp_reports', 'hrp_sync_queue', 'hrp_sync_cursor',
+            'hrp_last_push_at', 'hrp_last_pull_at'
+          ];
           keys.forEach(k => { try { wx.removeStorageSync(k); } catch (e) {} });
           wx.showToast({ title: '本地数据已清除', icon: 'success' });
         }

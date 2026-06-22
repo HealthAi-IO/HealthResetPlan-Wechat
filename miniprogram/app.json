@@ -11,7 +11,8 @@
     "pages/login/index",
     "pages/chat/index",
     "pages/sync/index",
-    "pages/membership/index"
+    "pages/membership/index",
+    "pages/legal/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#FFFFFF",

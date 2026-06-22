@@ -22,6 +22,8 @@ Page({
 
   onShow() { this._load(); },
 
+  onRefresh() { this._load(); },
+
   _load() {
     const app = getApp();
     const prof = storage.profile.get();
