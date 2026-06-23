@@ -27,6 +27,7 @@
 
 .upload-card,
 .summary-card,
+.advice-card,
 .result-card,
 .history-card {
   margin-top: 24rpx;
@@ -152,6 +153,24 @@
 .summary-meta {
   margin-top: 8rpx;
   font-size: 22rpx;
+}
+
+.advice-card {
+  border: 2rpx solid rgba(30, 136, 229, 0.16);
+  background: #f5fbff;
+}
+
+.advice-title {
+  color: #1e88e5;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.advice-text {
+  margin-top: 10rpx;
+  color: #374151;
+  font-size: 24rpx;
+  line-height: 1.7;
 }
 
 .result-title {
@@ -356,6 +375,7 @@
 }
 
 .detail-summary,
+.detail-advice,
 .detail-raw {
   padding: 20rpx;
   border-radius: 16rpx;
@@ -363,6 +383,11 @@
   color: #374151;
   font-size: 24rpx;
   line-height: 1.7;
+}
+
+.detail-advice {
+  border: 2rpx solid rgba(30, 136, 229, 0.16);
+  background: #f5fbff;
 }
 
 .detail-raw-collapsed {

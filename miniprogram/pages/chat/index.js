@@ -8,6 +8,8 @@ const QUICK_QUESTIONS = [
   '怎么改善睡眠质量？'
 ];
 
+const AI_DOCTOR_DISCLAIMER = 'AI 不能代替医生诊断，只提供健康管理建议；如有异常或症状加重，请及时就医。';
+
 Page({
   data: {
     messages: [],         // { id, role:'user'|'ai', content, streaming }
@@ -82,7 +84,7 @@ Page({
         messages: history,
         profileSummary: _profileSummary(profile, recent)
       });
-      const reply = (r && r.content) || (r && r.reply) || '抱歉，未能获取回答';
+      const reply = _withAiDoctorDisclaimer((r && r.content) || (r && r.reply) || '抱歉，未能获取回答');
       this._updateAiMsg(aiId, reply, false);
       this._loadUsage();
     } catch (err) {
@@ -115,4 +117,10 @@ function _profileSummary(profile, recent) {
     parts.push(`最近指标：${text}`);
   }
   return parts.join('\n');
+}
+
+function _withAiDoctorDisclaimer(value) {
+  const text = String(value || '').trim();
+  if (!text || text.indexOf('不能代替医生') >= 0 || text.indexOf('不代替医生') >= 0) return text;
+  return `${text}\n\n${AI_DOCTOR_DISCLAIMER}`;
 }

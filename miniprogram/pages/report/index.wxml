@@ -37,6 +37,11 @@
     </view>
   </view>
 
+  <view class="advice-card" wx:if="{{reportAdvice}}">
+    <view class="advice-title">AI 分析建议</view>
+    <view class="advice-text">{{reportAdvice}}</view>
+  </view>
+
   <view class="result-card" wx:if="{{result.length}}">
     <view class="result-title">识别到 {{result.length}} 项可导入指标</view>
     <view class="result-row" wx:for="{{result}}" wx:key="key">
@@ -96,9 +101,16 @@
         <view class="detail-summary">{{activeReport.title}}</view>
       </view>
 
+      <view class="detail-section" wx:if="{{activeReport.analysisAdvice}}">
+        <view class="detail-section-title">AI 分析建议</view>
+        <view class="detail-advice">{{activeReport.analysisAdvice}}</view>
+      </view>
+
       <view class="detail-section">
         <view class="detail-section-title">识别指标</view>
-        <view class="detail-empty muted" wx:if="{{!activeReport.indicators.length}}">这份报告暂未识别出具体指标。</view>
+        <view class="detail-summary" wx:if="{{!activeReport.indicators.length}}">
+          {{activeReport.rawText || '这份报告暂未识别出具体指标，请人工核对报告原图。'}}
+        </view>
         <view class="detail-indicator" wx:for="{{activeReport.indicators}}" wx:key="id">
           <view class="detail-indicator-top">
             <view class="detail-indicator-name">{{item.name}}</view>

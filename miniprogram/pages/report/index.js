@@ -2,6 +2,8 @@ const storage = require('../../utils/storage');
 const http = require('../../utils/http');
 const sync = require('../../utils/sync');
 
+const AI_DOCTOR_DISCLAIMER = 'AI 不能代替医生诊断，只提供健康管理建议；如有异常或症状加重，请及时就医。';
+
 const FIELD_MAP = {
   systolic: { type: 'bp', label: '收缩压', unit: 'mmHg', payloadKey: 'systolic' },
   diastolic: { type: 'bp', label: '舒张压', unit: 'mmHg', payloadKey: 'diastolic' },
@@ -24,6 +26,7 @@ Page({
     result: [],
     reportDate: '',
     reportSummary: '',
+    reportAdvice: '',
     reportProvider: '',
     reportRawText: '',
     summaryExpanded: false,
@@ -55,6 +58,7 @@ Page({
           result: [],
           reportDate: '',
           reportSummary: '',
+          reportAdvice: '',
           reportProvider: '',
           reportRawText: '',
           summaryExpanded: false,
@@ -90,7 +94,7 @@ Page({
     wx.showLoading({ title: 'AI 识别中...', mask: true });
 
     try {
-      const data = await http.upload('/reports/analyze', this.data.image);
+      const data = _normalizeOcrData(await http.upload('/reports/analyze', this.data.image));
       const result = this._mapResult(data);
       const record = await this._buildReportRecord(this.data.image, data, result);
 
@@ -112,6 +116,7 @@ Page({
         result,
         reportDate: record.reportTime,
         reportSummary: record.summary,
+        reportAdvice: record.analysisAdvice,
         reportProvider: record.provider,
         reportRawText: record.rawText,
         summaryExpanded: false,
@@ -164,6 +169,7 @@ Page({
       result: [],
       reportDate: '',
       reportSummary: '',
+      reportAdvice: '',
       reportProvider: '',
       reportRawText: '',
       summaryExpanded: false,
@@ -249,11 +255,15 @@ Page({
 
   _formatReportRecord(record) {
     const structured = record.structured && typeof record.structured === 'object' ? record.structured : {};
-    const indicators = Array.isArray(structured.indicators) ? structured.indicators : [];
+    const normalized = _normalizeOcrData({
+      ...structured,
+      rawText: structured.rawText || record.rawText || '',
+    });
+    const indicators = Array.isArray(normalized.indicators) ? normalized.indicators : [];
     return {
       ...record,
       clientId: String(record.clientId || record.id || ''),
-      title: record.summary || structured.summary || '检查报告',
+      title: record.summary || normalized.summary || '检查报告',
       timeLabel: this._fmtTime(new Date(record.reportTime || record.createdAt || Date.now())),
       reportDateLabel: this._fmtDateOnly(record.reportTime),
       indicatorCount: indicators.length,
@@ -268,8 +278,9 @@ Page({
         statusLabel: _statusLabel(item.status || 'unknown'),
         statusClass: _statusClass(item.status || 'unknown'),
       })),
-      rawText: record.rawText || structured.rawText || '',
-      provider: record.provider || structured.provider || '',
+      rawText: _displayRawText(record.rawText || normalized.rawText || ''),
+      analysisAdvice: _withAiDoctorDisclaimer(record.analysisAdvice || normalized.analysisAdvice || ''),
+      provider: record.provider || normalized.provider || '',
     };
   },
 
@@ -312,6 +323,7 @@ Page({
   },
 
   async _buildReportRecord(imagePath, data, result) {
+    data = _normalizeOcrData(data);
     const now = new Date().toISOString();
     const reportTime = _normalizeReportTime(data.reportDate || now);
     const clientId = `report-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -327,7 +339,8 @@ Page({
         status: item.status || 'unknown',
       })),
       summary: data.summary || '',
-      rawText: data.rawText || '',
+      analysisAdvice: _withAiDoctorDisclaimer(data.analysisAdvice || ''),
+      rawText: _displayRawText(data.rawText || ''),
       provider: data.provider || '',
     };
 
@@ -337,7 +350,8 @@ Page({
       imagePath: savedImagePath || imagePath,
       reportTime,
       summary: data.summary || '检查报告',
-      rawText: data.rawText || '',
+      analysisAdvice: structured.analysisAdvice,
+      rawText: _displayRawText(data.rawText || ''),
       structured,
       provider: data.provider || '',
       createdAt: now,
@@ -447,6 +461,48 @@ function _firstNumber(value) {
 function _normalizeReportTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+}
+
+function _normalizeOcrData(data) {
+  if (!data || typeof data !== 'object') return {};
+  if (Array.isArray(data.indicators) && data.indicators.length) return data;
+  const parsed = _tryParseJsonObject(data.rawText);
+  if (!parsed) return data;
+  return {
+    ...parsed,
+    provider: data.provider || parsed.provider || '',
+  };
+}
+
+function _tryParseJsonObject(value) {
+  let text = String(value || '').trim();
+  if (!text) return null;
+  if (text.indexOf('```') === 0) {
+    const start = text.indexOf('\n');
+    const end = text.lastIndexOf('```');
+    if (start > 0 && end > start) text = text.slice(start + 1, end).trim();
+  }
+  const first = text.indexOf('{');
+  const last = text.lastIndexOf('}');
+  if (first < 0 || last <= first) return null;
+  try {
+    const parsed = JSON.parse(text.slice(first, last + 1));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function _displayRawText(value) {
+  const text = String(value || '');
+  return _tryParseJsonObject(text) ? '' : text;
+}
+
+function _withAiDoctorDisclaimer(value) {
+  const text = String(value || '').trim();
+  if (!text) return `AI 已根据报告内容生成初步分析建议。${AI_DOCTOR_DISCLAIMER}`;
+  if (text.indexOf('不能代替医生') >= 0 || text.indexOf('不代替医生') >= 0) return text;
+  return `${text} ${AI_DOCTOR_DISCLAIMER}`;
 }
 
 function _statusClass(status) {

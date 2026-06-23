@@ -10,10 +10,10 @@
 /* 品牌 */
 .brand { text-align: center; padding: 40rpx 0 30rpx; }
 .brand-logo {
-  width: 120rpx; height: 120rpx; line-height: 120rpx;
+  display: block;
+  width: 120rpx; height: 120rpx;
   margin: 0 auto 20rpx; border-radius: 30rpx;
-  background: linear-gradient(135deg, #1E88E5 0%, #00ACC1 100%);
-  color: #fff; font-size: 56rpx; text-align: center;
+  background: #fff;
   box-shadow: 0 12rpx 28rpx rgba(30,136,229,0.25);
 }
 .brand-name { font-size: 40rpx; font-weight: 700; color: #1F2937; }

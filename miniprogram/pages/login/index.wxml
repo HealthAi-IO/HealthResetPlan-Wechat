@@ -2,7 +2,7 @@
 
   <!-- 顶部品牌 -->
   <view class="brand">
-    <view class="brand-logo">❤</view>
+    <image class="brand-logo" src="/assets/app-icon.png" mode="aspectFill" />
     <view class="brand-name">健康重启计划</view>
     <view class="brand-sub muted">端到端加密 · 数据归您所有</view>
   </view>
