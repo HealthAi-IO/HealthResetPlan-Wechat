@@ -1,30 +1,27 @@
 <view class="container">
-
-  <!-- 顶部品牌 -->
   <view class="brand">
     <image class="brand-logo" src="/assets/app-icon.png" mode="aspectFill" />
     <view class="brand-name">健康重启计划</view>
     <view class="brand-sub muted">端到端加密 · 数据归您所有</view>
   </view>
 
-  <!-- Tab 切换 -->
   <view class="tabs">
     <view class="tab {{mode==='login' ? 'active' : ''}}" bindtap="onSwitchLogin">登录</view>
     <view class="tab {{mode==='register' ? 'active' : ''}}" bindtap="onSwitchRegister">注册</view>
   </view>
 
-  <!-- 表单 -->
   <view class="form-card">
     <view class="form-row">
-      <view class="form-label">账号</view>
+      <view class="form-label">手机号</view>
       <input class="form-input"
-             placeholder="手机号或邮箱"
+             type="number"
+             placeholder="请输入手机号"
              value="{{form.identifier}}"
              data-field="identifier"
              bindinput="onInput" />
     </view>
 
-    <view class="form-row" wx:if="{{mode==='reset'}}">
+    <view class="form-row">
       <view class="form-label">验证码</view>
       <input class="form-input"
              type="number"
@@ -32,33 +29,38 @@
              value="{{form.code}}"
              data-field="code"
              bindinput="onInput" />
-      <view class="form-eye" bindtap="onSendResetCode">{{codeSending ? '发送中' : '获取验证码'}}</view>
+      <view class="form-eye" wx:if="{{mode==='reset'}}" bindtap="onSendResetCode">
+        {{codeSending ? '发送中' : '获取验证码'}}
+      </view>
+      <view class="form-eye" wx:else bindtap="onSendLoginCode">
+        {{codeSending ? '发送中' : '获取验证码'}}
+      </view>
     </view>
 
     <view class="form-row" wx:if="{{mode==='register'}}">
       <view class="form-label">昵称</view>
       <input class="form-input"
-             placeholder="选填，默认为「健康用户」"
+             placeholder="选填，默认健康用户"
              value="{{form.nickname}}"
              data-field="nickname"
              bindinput="onInput"
              maxlength="20" />
     </view>
 
-    <view class="form-row">
-      <view class="form-label">密码</view>
+    <view class="form-row" wx:if="{{mode==='reset'}}">
+      <view class="form-label">新密码</view>
       <input class="form-input"
-             password="{{!showPwd}}"
-             placeholder="{{mode==='login' ? '请输入密码' : '8-64 位新密码'}}"
+             password="true"
+             placeholder="8-64 位新密码"
              value="{{form.password}}"
              data-field="password"
              bindinput="onInput" />
-      <view class="form-eye" bindtap="onTogglePwd">{{showPwd ? '🙈' : '👁'}}</view>
     </view>
 
     <view class="form-tip muted" wx:if="{{mode==='register'}}">
       注册即代表同意
-      <text class="legal-link" data-type="terms" bindtap="onOpenLegal">《用户协议》</text>与
+      <text class="legal-link" data-type="terms" bindtap="onOpenLegal">《用户协议》</text>
+      和
       <text class="legal-link" data-type="privacy" bindtap="onOpenLegal">《隐私政策》</text>
     </view>
     <view class="form-tip muted" wx:if="{{mode==='login'}}" bindtap="onSwitchReset">忘记密码？</view>
@@ -68,16 +70,15 @@
   <button class="btn-primary {{loading ? 'disabled' : ''}}"
           disabled="{{loading}}"
           bindtap="onSubmit">
-    {{loading ? '请稍候…' : (mode==='login' ? '登录' : (mode==='register' ? '注册并登录' : '重置密码'))}}
+    {{loading ? '请稍候...' : (mode==='reset' ? '重置密码' : '验证码登录')}}
   </button>
 
-  <view class="skip-row" bindtap="onSkip">跳过，仅本地使用 ›</view>
+  <view class="skip-row" bindtap="onSkip">跳过，仅本地使用 →</view>
 
   <view class="tip-card">
-    <view class="tip-title">🔐 关于云同步</view>
+    <view class="tip-title">关于云同步</view>
     <view class="tip-body muted">
-      登录后将开启端到端加密云同步：客户端用您的主密钥加密后上传，服务端无法读取明文。
-      如果你要读取手机端已经上传的数据，请在小程序“云同步与密钥”页面恢复同一组助记词。
+      登录后可开启端到端加密云同步。客户端加密后上传，服务端无法读取明文。
     </view>
   </view>
 </view>
