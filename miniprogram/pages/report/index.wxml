@@ -1,5 +1,6 @@
 <view class="container">
   <view class="hero">
+    <view class="hero-sub muted" wx:if="{{aiRemaining !== null}}">今日报告识别剩余 {{aiRemaining}} / 5 次</view>
     <view class="hero-title">检查报告 OCR</view>
     <view class="hero-sub muted">上传体检、血压、血脂或血糖报告图片，AI 会提取指标并保存到最近报告。</view>
   </view>
@@ -20,6 +21,11 @@
         </button>
       </view>
     </view>
+  </view>
+
+  <view class="advice-card" wx:if="{{highRisk}}">
+    <view class="advice-title">需要优先就医</view>
+    <view class="advice-text">{{riskMessage}}</view>
   </view>
 
   <view class="summary-card" wx:if="{{reportSummary}}">

@@ -13,9 +13,18 @@ Page({
     aiPreviewVisible: false,
     pendingAiPlan: null,
     expandedDates: [],
+    aiRemaining: null,
   },
 
-  onShow() { this._load(); },
+  onShow() { this._load(); this._loadAiUsage(); },
+
+  async _loadAiUsage() {
+    if (!getApp().isLoggedIn()) return;
+    try {
+      const data = await http.get('/ai/chat/daily-usage');
+      this.setData({ aiRemaining: data.plan && data.plan.remaining });
+    } catch (_) {}
+  },
 
   _load() {
     const prof = storage.profile.get();
@@ -115,6 +124,7 @@ Page({
         pendingAiPlan: parsed,
         aiPreviewVisible: true,
       });
+      this._loadAiUsage();
       wx.showToast({ title: parsed.executable ? 'AI 方案已生成' : '请查看生成结果', icon: parsed.executable ? 'success' : 'none' });
     } catch (err) {
       if (!storage.plans.getAll().length) {

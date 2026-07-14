@@ -51,15 +51,9 @@
     </view>
   </view>
 
-  <!-- 云同步 + 会员 -->
+  <!-- 云同步 -->
   <view class="section-card">
-    <view class="section-label">会员与同步</view>
-    <view class="cell" bindtap="onGoMembership">
-      <view class="cell-icon">👑</view>
-      <view class="cell-label">会员中心</view>
-      <view class="cell-arrow muted">›</view>
-    </view>
-    <view class="cell-divider"></view>
+    <view class="section-label">云同步</view>
     <view class="cell" bindtap="onGoSync">
       <view class="cell-icon">🔐</view>
       <view class="cell-main">

@@ -229,10 +229,6 @@ Page({
     }
   },
 
-  onGoMembership() {
-    wx.navigateTo({ url: '/pages/membership/index' });
-  },
-
   _refresh() {
     const s = sync.status();
     const statusLabel = !s.loggedIn ? '未登录' : (!s.hasKey ? '待恢复密钥' : '可同步');

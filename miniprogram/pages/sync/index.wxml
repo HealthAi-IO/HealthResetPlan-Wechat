@@ -147,7 +147,4 @@
     <view class="guide-summary" wx:else>这里会提示会员权限和先手机后小程序的同步顺序。</view>
   </view>
 
-  <button class="member-btn" bindtap="onGoMembership">
-    前往会员中心
-  </button>
 </view>

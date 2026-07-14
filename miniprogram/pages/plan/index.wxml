@@ -2,6 +2,7 @@
 
   <!-- Hero -->
   <view class="hero">
+    <view class="hero-sub muted" wx:if="{{aiRemaining !== null}}">今日 AI 计划剩余 {{aiRemaining}} / 3 次</view>
     <view class="hero-title">7 天健康规划</view>
     <view class="hero-sub muted">基于健康档案生成个性化饮食 · 运动 · 测量方案</view>
     <view class="hero-btns">

@@ -29,15 +29,27 @@ Page({
     reportAdvice: '',
     reportProvider: '',
     reportRawText: '',
+    highRisk: false,
+    riskMessage: '',
     summaryExpanded: false,
     detailRawExpanded: false,
     history: [],
     activeReport: null,
     detailVisible: false,
+    aiRemaining: null,
   },
 
   onShow() {
     this._loadHistory();
+    this._loadAiUsage();
+  },
+
+  async _loadAiUsage() {
+    if (!getApp().isLoggedIn()) return;
+    try {
+      const data = await http.get('/ai/chat/daily-usage');
+      this.setData({ aiRemaining: data.report && data.report.remaining });
+    } catch (_) {}
   },
 
   onChooseImage() {
@@ -90,6 +102,16 @@ Page({
       return;
     }
 
+    if (!wx.getStorageSync('hrp_report_ai_consent')) {
+      const consent = await new Promise(resolve => wx.showModal({
+        title: '报告图片处理提示',
+        content: '报告图片会发送给已配置的 AI 服务商，仅用于本次指标识别。是否继续？',
+        confirmText: '同意并继续',
+        success: resolve,
+      }));
+      if (!consent.confirm) return;
+      wx.setStorageSync('hrp_report_ai_consent', true);
+    }
     this.setData({ loading: true });
     wx.showLoading({ title: 'AI 识别中...', mask: true });
 
@@ -119,8 +141,11 @@ Page({
         reportAdvice: record.analysisAdvice,
         reportProvider: record.provider,
         reportRawText: record.rawText,
+        highRisk: !!data.highRisk,
+        riskMessage: data.riskMessage || '',
         summaryExpanded: false,
       });
+      this._loadAiUsage();
     } catch (err) {
       console.error('[report.ocr]', err);
       wx.showToast({ title: err.message || '在线识别失败，请稍后重试', icon: 'none' });

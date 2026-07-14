@@ -42,7 +42,6 @@ Page({
   onGoIndicators() { wx.navigateTo({ url: '/pages/indicators/index' }); },
   onGoChat()       { wx.navigateTo({ url: '/pages/chat/index' }); },
   onGoSync()       { wx.navigateTo({ url: '/pages/sync/index' }); },
-  onGoMembership() { wx.navigateTo({ url: '/pages/membership/index' }); },
   onGoPrivacy()    { wx.navigateTo({ url: '/pages/legal/index?type=privacy' }); },
   onGoTerms()      { wx.navigateTo({ url: '/pages/legal/index?type=terms' }); },
 
