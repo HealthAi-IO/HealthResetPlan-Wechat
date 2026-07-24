@@ -29,7 +29,9 @@ const TABLES = [
   'plan',
   'clock_record',
   'reminder',
-  'health_report'
+  'health_report',
+  'ai_session',
+  'ai_message'
 ];
 
 const STORAGE_KEYS = {
@@ -38,8 +40,18 @@ const STORAGE_KEYS = {
   plans: 'hrp_plans',
   clock: 'hrp_clock_records',
   reminders: 'hrp_reminders',
-  reports: 'hrp_reports'
+  reports: 'hrp_reports',
+  aiSessions: 'hrp_ai_sessions',
+  aiMessages: 'hrp_ai_messages'
 };
+
+function _syncKey(name) {
+  return name === 'DEVICE_ID' ? K[name] : storage.scopedKey(K[name]);
+}
+
+function _storageKey(name) {
+  return storage.scopedKey(STORAGE_KEYS[name]);
+}
 
 function setMasterKeyFromMnemonic(mnemonic) {
   const key = crypto.masterKeyFromMnemonic(normalizeMnemonic(mnemonic));
@@ -56,7 +68,7 @@ async function generateMasterKey() {
 }
 
 function getMasterKey() {
-  const hex = wx.getStorageSync(K.MASTER_KEY);
+  const hex = wx.getStorageSync(_syncKey('MASTER_KEY'));
   return hex ? crypto._hexToBytes(hex) : null;
 }
 
@@ -66,14 +78,14 @@ function keyFingerprint() {
 }
 
 function hasMasterKey() {
-  return !!wx.getStorageSync(K.MASTER_KEY);
+  return !!wx.getStorageSync(_syncKey('MASTER_KEY'));
 }
 
 function clearMasterKey() {
-  wx.removeStorageSync(K.MASTER_KEY);
-  wx.removeStorageSync(K.SYNC_QUEUE);
-  wx.removeStorageSync(K.SYNC_CURSOR);
-  wx.removeStorageSync(K.LAST_KEY_FINGERPRINT);
+  wx.removeStorageSync(_syncKey('MASTER_KEY'));
+  wx.removeStorageSync(_syncKey('SYNC_QUEUE'));
+  wx.removeStorageSync(_syncKey('SYNC_CURSOR'));
+  wx.removeStorageSync(_syncKey('LAST_KEY_FINGERPRINT'));
 }
 
 function _deviceId() {
@@ -104,13 +116,13 @@ function enqueueIndicatorDelete(clientId) {
 
 function enqueueItem(item) {
   if (!item || !item.table || !item.clientId) return;
-  const queue = wx.getStorageSync(K.SYNC_QUEUE) || [];
+  const queue = wx.getStorageSync(_syncKey('SYNC_QUEUE')) || [];
   queue.push(item);
-  wx.setStorageSync(K.SYNC_QUEUE, queue);
+  wx.setStorageSync(_syncKey('SYNC_QUEUE'), queue);
 }
 
 function enqueueAllIndicators() {
-  const before = wx.getStorageSync(K.SYNC_QUEUE) || [];
+  const before = wx.getStorageSync(_syncKey('SYNC_QUEUE')) || [];
   const next = before.slice();
   const seen = new Set(next.map(q => `${q.table}:${q.clientId}`));
   storage.indicators.getAll().forEach(entry => {
@@ -121,7 +133,7 @@ function enqueueAllIndicators() {
       seen.add(key);
     }
   });
-  wx.setStorageSync(K.SYNC_QUEUE, next);
+  wx.setStorageSync(_syncKey('SYNC_QUEUE'), next);
   return next.length - before.length;
 }
 
@@ -135,7 +147,7 @@ async function pushNow() {
   _prepareKeyChange();
   const key = getMasterKey();
   const localItems = buildLocalSyncItems();
-  const queuedItems = wx.getStorageSync(K.SYNC_QUEUE) || [];
+  const queuedItems = wx.getStorageSync(_syncKey('SYNC_QUEUE')) || [];
   const queuedUpserts = queuedItems.filter(item => !item.deleted);
   const queuedDeletes = queuedItems.filter(item => item.deleted);
   const itemsToEncrypt = _dedupeSyncItems(queuedUpserts.concat(localItems, queuedDeletes));
@@ -165,8 +177,8 @@ async function pushNow() {
       keyFingerprint: keyFingerprint(),
       items
     });
-    wx.setStorageSync(K.SYNC_QUEUE, []);
-    wx.setStorageSync(K.LAST_PUSH_AT, Date.now());
+    wx.setStorageSync(_syncKey('SYNC_QUEUE'), []);
+    wx.setStorageSync(_syncKey('LAST_PUSH_AT'), Date.now());
     return { ok: true, accepted: r.accepted || items.length, serverTime: r.serverTime };
   } catch (err) {
     return { ok: false, error: err };
@@ -177,15 +189,25 @@ async function pullNow(options = {}) {
   if (!_canSync()) return { skipped: true };
 
   _prepareKeyChange();
-  if (options.resetCursor) wx.removeStorageSync(K.SYNC_CURSOR);
+  if (options.resetCursor) wx.removeStorageSync(_syncKey('SYNC_CURSOR'));
 
-  const cursor = options.resetCursor ? 0 : (wx.getStorageSync(K.SYNC_CURSOR) || 0);
+  const cursor = options.resetCursor ? 0 : (wx.getStorageSync(_syncKey('SYNC_CURSOR')) || 0);
   const key = getMasterKey();
-  const r = await http.get(`/sync/pull?since=${cursor}&limit=500`, null, {
-    'X-Key-Fingerprint': keyFingerprint()
-  });
-
-  const items = Array.isArray(r.items) ? r.items : [];
+  const items = [];
+  let serverTime = 0;
+  let offset = 0;
+  while (true) {
+    const query = [`since=${cursor}`, 'limit=500', `offset=${offset}`];
+    if (serverTime) query.push(`until=${serverTime}`);
+    const page = await http.get(`/sync/pull?${query.join('&')}`, null, {
+      'X-Key-Fingerprint': keyFingerprint()
+    });
+    const pageItems = Array.isArray(page.items) ? page.items : [];
+    items.push(...pageItems);
+    serverTime = serverTime || Number(page.serverTime) || 0;
+    if (!page.hasMore || pageItems.length === 0) break;
+    offset += pageItems.length;
+  }
   const byTable = _emptyPullStats();
   const decodedItems = [];
 
@@ -245,9 +267,9 @@ async function pullNow(options = {}) {
     }
   });
 
-  if (r.serverTime && failed === 0) {
-    wx.setStorageSync(K.SYNC_CURSOR, r.serverTime);
-    wx.setStorageSync(K.LAST_PULL_AT, Date.now());
+  if (serverTime && failed === 0) {
+    wx.setStorageSync(_syncKey('SYNC_CURSOR'), serverTime);
+    wx.setStorageSync(_syncKey('LAST_PULL_AT'), Date.now());
     _saveCurrentKeyFingerprint();
   }
   return { ok: true, merged, skipped, failed, total: items.length, byTable };
@@ -255,33 +277,37 @@ async function pullNow(options = {}) {
 
 function _writeMasterKey(key) {
   const nextFingerprint = crypto.publicFingerprint(key);
-  const prevFingerprint = wx.getStorageSync(K.LAST_KEY_FINGERPRINT) || '';
-  wx.setStorageSync(K.MASTER_KEY, crypto._bytesToHex(key));
+  const prevFingerprint = wx.getStorageSync(_syncKey('LAST_KEY_FINGERPRINT')) || '';
+  wx.setStorageSync(_syncKey('MASTER_KEY'), crypto._bytesToHex(key));
   if (prevFingerprint && prevFingerprint !== nextFingerprint) {
-    wx.removeStorageSync(K.SYNC_CURSOR);
+    wx.removeStorageSync(_syncKey('SYNC_CURSOR'));
   }
-  wx.setStorageSync(K.LAST_KEY_FINGERPRINT, nextFingerprint);
+  wx.setStorageSync(_syncKey('LAST_KEY_FINGERPRINT'), nextFingerprint);
 }
 
 function _prepareKeyChange() {
   const fingerprint = keyFingerprint();
   if (!fingerprint) return;
-  const prevFingerprint = wx.getStorageSync(K.LAST_KEY_FINGERPRINT) || '';
+  const prevFingerprint = wx.getStorageSync(_syncKey('LAST_KEY_FINGERPRINT')) || '';
   if (prevFingerprint && prevFingerprint !== fingerprint) {
-    wx.removeStorageSync(K.SYNC_CURSOR);
+    wx.removeStorageSync(_syncKey('SYNC_CURSOR'));
   }
-  wx.setStorageSync(K.LAST_KEY_FINGERPRINT, fingerprint);
+  wx.setStorageSync(_syncKey('LAST_KEY_FINGERPRINT'), fingerprint);
 }
 
 function _saveCurrentKeyFingerprint() {
   const fingerprint = keyFingerprint();
-  if (fingerprint) wx.setStorageSync(K.LAST_KEY_FINGERPRINT, fingerprint);
+  if (fingerprint) wx.setStorageSync(_syncKey('LAST_KEY_FINGERPRINT'), fingerprint);
 }
 
 function _clearLocalSyncedData() {
-  Object.keys(STORAGE_KEYS).forEach(key => {
+  storage.clearCurrentData();
+}
+
+function clearCurrentSyncState() {
+  ['SYNC_QUEUE', 'SYNC_CURSOR', 'LAST_PUSH_AT', 'LAST_PULL_AT'].forEach(name => {
     try {
-      wx.removeStorageSync(STORAGE_KEYS[key]);
+      wx.removeStorageSync(_syncKey(name));
     } catch (e) {}
   });
 }
@@ -320,6 +346,8 @@ function buildLocalSyncItems() {
   storage.clock.getAll().forEach(record => items.push(_clockToSyncItem(record)));
   storage.reminders.getAll().forEach(reminder => items.push(_reminderToSyncItem(reminder)));
   storage.reports.getAll().forEach(report => items.push(_reportToSyncItem(report)));
+  storage.chat.sessions().forEach(session => items.push(_aiSessionToSyncItem(session)));
+  storage.chat.messages().forEach(message => items.push(_aiMessageToSyncItem(message)));
   return items.filter(Boolean);
 }
 
@@ -504,32 +532,86 @@ function _reportToSyncItem(report) {
   };
 }
 
+function _aiSessionToSyncItem(session) {
+  const updatedAt = _toMs(session.updatedAt) || Date.now();
+  const sessionUuid = String(session.sessionUuid || '');
+  if (!sessionUuid) return null;
+  const row = {
+    sessionUuid,
+    title: session.title || 'New conversation',
+    provider: session.provider || 'doubao',
+    created_at: _toMs(session.createdAt) || updatedAt,
+    updated_at: updatedAt
+  };
+  return { table: 'ai_session', clientId: sessionUuid, version: updatedAt, clientUpdatedAt: updatedAt,
+    plain: row, meta: { deviceId: _deviceId() } };
+}
+
+function _aiMessageToSyncItem(message) {
+  const updatedAt = _toMs(message.updatedAt) || _toMs(message.createdAt) || Date.now();
+  const messageUuid = String(message.messageUuid || '');
+  const sessionUuid = String(message.sessionUuid || '');
+  if (!messageUuid || !sessionUuid) return null;
+  const row = {
+    sessionUuid,
+    messageUuid,
+    role: message.role || 'assistant',
+    content: message.content || '',
+    provider: message.provider || '',
+    is_error: message.isError ? 1 : 0,
+    created_at: _toMs(message.createdAt) || updatedAt,
+    updated_at: updatedAt
+  };
+  return { table: 'ai_message', clientId: messageUuid, version: updatedAt, clientUpdatedAt: updatedAt,
+    plain: row, meta: { deviceId: _deviceId() } };
+}
+
 function _mergeLocalItem(table, clientId, plain, cloudItem) {
   switch (table) {
     case 'user_profile':
       return _mergeProfile(plain);
     case 'health_indicator':
-      return _upsert(STORAGE_KEYS.indicators, _indicatorFromRow(plain, clientId, cloudItem));
+      return _upsert(_storageKey('indicators'), _indicatorFromRow(plain, clientId, cloudItem));
     case 'plan':
-      return _upsert(STORAGE_KEYS.plans, _planFromRow(plain, clientId, cloudItem));
+      return _upsert(_storageKey('plans'), _planFromRow(plain, clientId, cloudItem));
     case 'clock_record':
-      return _upsert(STORAGE_KEYS.clock, _clockFromRow(plain, clientId, cloudItem));
+      return _upsert(_storageKey('clock'), _clockFromRow(plain, clientId, cloudItem));
     case 'reminder':
-      return _upsert(STORAGE_KEYS.reminders, _reminderFromRow(plain, clientId, cloudItem));
+      return _upsert(_storageKey('reminders'), _reminderFromRow(plain, clientId, cloudItem));
     case 'health_report':
-      return _upsert(STORAGE_KEYS.reports, _reportFromRow(plain, clientId, cloudItem));
+      return _upsert(_storageKey('reports'), _reportFromRow(plain, clientId, cloudItem));
+    case 'ai_session':
+      return _mergeAiSession(plain, clientId, cloudItem);
+    case 'ai_message':
+      return _mergeAiMessage(plain, clientId, cloudItem);
     default:
       return false;
   }
 }
 
 function _deleteLocalItem(table, clientId) {
+  if (table === 'ai_session') {
+    const sessions = storage.chat.sessions();
+    const nextSessions = sessions.filter(item => item.sessionUuid !== String(clientId));
+    const messages = storage.chat.messages().filter(item => item.sessionUuid !== String(clientId));
+    storage.chat.saveSessions(nextSessions);
+    storage.chat.saveMessages(messages);
+    return nextSessions.length !== sessions.length;
+  }
+  if (table === 'ai_message') {
+    const messages = storage.chat.messages();
+    const next = messages.filter(item => item.messageUuid !== String(clientId));
+    storage.chat.saveMessages(next);
+    return next.length !== messages.length;
+  }
   const key = {
-    health_indicator: STORAGE_KEYS.indicators,
-    plan: STORAGE_KEYS.plans,
-    clock_record: STORAGE_KEYS.clock,
-    reminder: STORAGE_KEYS.reminders,
-    health_report: STORAGE_KEYS.reports
+    health_indicator: _storageKey('indicators'),
+    plan: _storageKey('plans'),
+    clock_record: _storageKey('clock'),
+    reminder: _storageKey('reminders'),
+    health_report: _storageKey('reports'),
+    ai_session: _storageKey('aiSessions'),
+    ai_message: _storageKey('aiMessages')
   }[table];
   if (!key || !clientId) return false;
   const list = wx.getStorageSync(key) || [];
@@ -538,11 +620,41 @@ function _deleteLocalItem(table, clientId) {
   return next.length !== list.length;
 }
 
+function _mergeAiSession(row, clientId, item) {
+  const updatedAt = _toMs(row.updated_at) || _toMs(item.clientUpdatedAt) || Date.now();
+  const sessionUuid = String(row.sessionUuid || row.session_uuid || clientId || '');
+  if (!sessionUuid) return false;
+  const list = storage.chat.sessions();
+  const index = list.findIndex(entry => entry.sessionUuid === sessionUuid);
+  const next = { sessionUuid, title: row.title || 'New conversation', provider: row.provider || 'doubao',
+    createdAt: _toMs(row.created_at) || updatedAt, updatedAt };
+  if (index >= 0 && _toMs(list[index].updatedAt) > updatedAt) return false;
+  if (index >= 0) list[index] = { ...list[index], ...next }; else list.push(next);
+  storage.chat.saveSessions(list);
+  return true;
+}
+
+function _mergeAiMessage(row, clientId, item) {
+  const updatedAt = _toMs(row.updated_at) || _toMs(item.clientUpdatedAt) || Date.now();
+  const messageUuid = String(row.messageUuid || row.message_uuid || clientId || '');
+  const sessionUuid = String(row.sessionUuid || row.session_uuid || '');
+  if (!messageUuid || !sessionUuid) return false;
+  const list = storage.chat.messages();
+  const index = list.findIndex(entry => entry.messageUuid === messageUuid);
+  const next = { messageUuid, sessionUuid, role: row.role || 'assistant', content: row.content || '', provider: row.provider || '',
+    isError: Number(row.is_error || row.isError) === 1, createdAt: _toMs(row.created_at) || updatedAt, updatedAt };
+  if (index >= 0 && _toMs(list[index].updatedAt) > updatedAt) return false;
+  if (index >= 0) list[index] = { ...list[index], ...next }; else list.push(next);
+  list.sort((a, b) => _toMs(a.createdAt) - _toMs(b.createdAt));
+  storage.chat.saveMessages(list);
+  return true;
+}
+
 function _mergeProfile(plain) {
   const profile = _profileFromRow(plain);
   if (!_hasProfileContent(profile)) return false;
   const current = storage.profile.get() || {};
-  wx.setStorageSync(STORAGE_KEYS.profile, {
+  wx.setStorageSync(_storageKey('profile'), {
     ...current,
     ...profile,
     updatedAt: profile.updatedAt || new Date().toISOString()
@@ -921,10 +1033,10 @@ function status() {
   return {
     loggedIn: !!getApp().isLoggedIn(),
     hasKey: hasMasterKey(),
-    queueLen: buildLocalSyncItems().length + (wx.getStorageSync(K.SYNC_QUEUE) || []).filter(q => q.deleted).length,
-    cursor: wx.getStorageSync(K.SYNC_CURSOR) || 0,
-    lastPushAt: wx.getStorageSync(K.LAST_PUSH_AT) || 0,
-    lastPullAt: wx.getStorageSync(K.LAST_PULL_AT) || 0,
+    queueLen: buildLocalSyncItems().length + (wx.getStorageSync(_syncKey('SYNC_QUEUE')) || []).filter(q => q.deleted).length,
+    cursor: wx.getStorageSync(_syncKey('SYNC_CURSOR')) || 0,
+    lastPushAt: wx.getStorageSync(_syncKey('LAST_PUSH_AT')) || 0,
+    lastPullAt: wx.getStorageSync(_syncKey('LAST_PULL_AT')) || 0,
     deviceId: _deviceId(),
     keyFingerprint: keyFingerprint()
   };
@@ -935,6 +1047,7 @@ module.exports = {
   setMasterKeyFromMnemonic,
   hasMasterKey,
   clearMasterKey,
+  clearCurrentSyncState,
   enqueueItem,
   enqueueIndicator,
   enqueueIndicatorDelete,

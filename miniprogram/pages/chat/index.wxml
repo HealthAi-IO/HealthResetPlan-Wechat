@@ -2,6 +2,7 @@
 
   <!-- 顶部使用量 -->
   <view class="usage-bar">
+    <text bindtap="onChooseSession">{{sessionTitle || '会话'}}</text>
     <text>🤖 AI 健康助理</text>
     <text class="muted">今日剩余 {{remaining}} / {{limit}}</text>
   </view>

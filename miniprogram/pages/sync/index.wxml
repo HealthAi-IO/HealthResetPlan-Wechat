@@ -9,6 +9,12 @@
     </view>
   </view>
 
+  <view class="guide-card">
+    <view class="guide-title">云同步说明</view>
+    <view class="guide-line">使用同一账号和同一组助记词后，健康数据与 AI 会话都会端到端加密同步。</view>
+    <view class="guide-line">不同设备新建的消息会全部保留；修改或删除同一条消息时，以更新时间较新的版本为准。</view>
+  </view>
+
   <view class="status-card {{state.loggedIn && state.hasKey ? 'on' : ''}}">
     <view class="status-dot"></view>
     <view class="status-body">
@@ -139,12 +145,12 @@
       <view class="section-arrow">{{tipsExpanded ? '收起' : '展开'}}</view>
     </view>
     <view wx:if="{{tipsExpanded}}">
-      <view class="tip">推送 / 拉取需要账号拥有 cloud_sync 权益。没有权限时，可先进入会员中心查看。</view>
+      <view class="tip">推送 / 拉取需要先登录手机号账号，并恢复同一组 24 词助记词。</view>
       <view class="tip muted-tip" wx:if="{{state.hasKey}}">
         如果你在手机端刚更新过数据，建议先在手机端点一次同步，再回到这里拉取云端。
       </view>
     </view>
-    <view class="guide-summary" wx:else>这里会提示会员权限和先手机后小程序的同步顺序。</view>
+    <view class="guide-summary" wx:else>这里会说明先手机后小程序的同步顺序和助记词要求。</view>
   </view>
 
 </view>

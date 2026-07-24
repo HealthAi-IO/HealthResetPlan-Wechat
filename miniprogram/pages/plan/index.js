@@ -1,6 +1,13 @@
 const storage = require('../../utils/storage');
 const planUtil = require('../../utils/plan');
 const http = require('../../utils/http');
+const sync = require('../../utils/sync');
+
+const EDITOR_TYPES = [
+  { value: 'meal', label: '饮食' },
+  { value: 'exercise', label: '运动' },
+  { value: 'measurement', label: '测量' },
+];
 
 Page({
   data: {
@@ -14,6 +21,13 @@ Page({
     pendingAiPlan: null,
     expandedDates: [],
     aiRemaining: null,
+    editorTypes: EDITOR_TYPES,
+    editor: {
+      show: false, editing: false, id: '', date: '', type: 'meal',
+      typeIndex: 0, summary: '', breakfast: '', lunch: '', dinner: '',
+      snack: '', exerciseType: '', duration: '', intensity: '',
+      description: '', items: '',
+    },
   },
 
   onShow() { this._load(); this._loadAiUsage(); },
@@ -80,12 +94,139 @@ Page({
     wx.showToast({ title: '本地计划已更新', icon: 'success' });
   },
 
+  onAddPlan(e) {
+    this._openEditor(null, e.currentTarget.dataset.date);
+  },
+
+  onEditPlan(e) {
+    const id = String(e.currentTarget.dataset.id);
+    const plan = storage.plans.getAll()
+      .find(item => String(item.clientId || item.id) === id);
+    if (plan) this._openEditor(plan, plan.date);
+  },
+
+  onDeletePlan(e) {
+    const id = String(e.currentTarget.dataset.id);
+    wx.showModal({
+      title: '删除计划项',
+      content: '删除后会同步到其他设备，确定继续吗？',
+      confirmText: '删除',
+      confirmColor: '#E53935',
+      success: result => {
+        if (!result.confirm) return;
+        const removed = storage.plans.remove(id);
+        if (removed) {
+          const clientId = String(removed.clientId || removed.id);
+          const now = Date.now();
+          sync.enqueueItem({
+            table: 'plan',
+            clientId,
+            version: now,
+            clientUpdatedAt: now,
+            deleted: true,
+            plain: { deleted: true },
+            meta: { deleted: true },
+          });
+        }
+        this._load();
+      }
+    });
+  },
+
+  onEditorInput(e) {
+    const field = e.currentTarget.dataset.field;
+    this.setData({ [`editor.${field}`]: e.detail.value });
+  },
+
+  onEditorTypeChange(e) {
+    const index = Number(e.detail.value) || 0;
+    this.setData({
+      'editor.typeIndex': index,
+      'editor.type': EDITOR_TYPES[index].value,
+    });
+  },
+
+  onEditorCancel() {
+    this.setData({ 'editor.show': false });
+  },
+
+  onEditorSave() {
+    const editor = this.data.editor;
+    const summary = editor.summary.trim();
+    if (!summary) {
+      wx.showToast({ title: '请填写计划概括', icon: 'none' });
+      return;
+    }
+    const payload = { summary };
+    if (editor.type === 'meal') {
+      ['breakfast', 'lunch', 'dinner', 'snack'].forEach(key => {
+        payload[key] = _lines(editor[key]);
+      });
+    } else if (editor.type === 'exercise') {
+      const duration = Number(editor.duration);
+      if (editor.exerciseType.trim()) payload.type = editor.exerciseType.trim();
+      if (duration > 0) {
+        payload.duration = duration;
+        payload.durationMinutes = duration;
+      }
+      if (editor.intensity.trim()) payload.intensity = editor.intensity.trim();
+      if (editor.description.trim()) {
+        payload.desc = editor.description.trim();
+        payload.items = [editor.description.trim()];
+      }
+    } else {
+      payload.items = _lines(editor.items);
+    }
+
+    if (editor.editing) {
+      storage.plans.update(editor.id, { summary, payload });
+    } else {
+      storage.plans.add({
+        date: editor.date,
+        type: editor.type,
+        summary,
+        payload,
+        aiProvider: 'manual',
+        aiModel: 'manual-edit',
+      });
+    }
+    this.setData({ 'editor.show': false });
+    this._load();
+    wx.showToast({ title: '计划已保存', icon: 'success' });
+  },
+
+  _openEditor(plan, date) {
+    const payload = (plan && plan.payload) || {};
+    const type = (plan && plan.type) || 'meal';
+    const typeIndex = Math.max(0, EDITOR_TYPES.findIndex(item => item.value === type));
+    this.setData({
+      editor: {
+        show: true,
+        editing: !!plan,
+        id: plan ? String(plan.clientId || plan.id) : '',
+        date,
+        type,
+        typeIndex,
+        summary: (plan && (plan.summary || payload.summary)) || '',
+        breakfast: _linesText(payload.breakfast),
+        lunch: _linesText(payload.lunch),
+        dinner: _linesText(payload.dinner),
+        snack: _linesText(payload.snack),
+        exerciseType: payload.type || '',
+        duration: String(payload.durationMinutes || payload.duration || ''),
+        intensity: payload.intensity || '',
+        description: payload.desc || _lines(payload.items)[0] || '',
+        items: _linesText(payload.items),
+      },
+    });
+  },
+
   onAiGenerate() {
     const app = getApp();
     if (!app.isLoggedIn()) {
       wx.showModal({
         title: '需要登录',
-        content: 'AI 生成方案需要账号 + 会员权益，请先登录。',
+        content: 'AI 生成方案需要手机号账号，请先登录。',
         confirmText: '去登录',
         success: r => { if (r.confirm) wx.navigateTo({ url: '/pages/login/index' }); }
       });
@@ -200,10 +341,24 @@ function _listText(raw) {
   return raw || '';
 }
 
+function _lines(raw) {
+  if (Array.isArray(raw)) {
+    return raw.map(item => String(item).trim()).filter(Boolean);
+  }
+  return String(raw || '')
+    .split(/[\r\n]+/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function _linesText(raw) {
+  return _lines(raw).join('\n');
+}
+
 function _friendlyAiError(err) {
   const code = err && err.code;
   const msg = err && (err.message || err.msg);
-  if (code === 40301) return 'AI 方案生成需要会员权益';
+  if (code === 40301) return '请先登录手机号账号';
   if (code === 42901) return '今日 AI 使用次数已达上限';
   if (code === 50301) return 'AI 服务繁忙，已保留本地方案';
   return msg || 'AI 生成失败，已保留本地方案';

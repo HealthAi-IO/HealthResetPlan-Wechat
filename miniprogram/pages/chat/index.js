@@ -1,5 +1,6 @@
 const http = require('../../utils/http');
 const storage = require('../../utils/storage');
+const sync = require('../../utils/sync');
 
 const QUICK_QUESTIONS = [
   '我今天血压偏高，吃什么有帮助？',
@@ -18,11 +19,38 @@ Page({
     anchor: '',
     remaining: '--',
     limit: '--',
+    sessionTitle: '',
     quickQuestions: QUICK_QUESTIONS
   },
 
   onShow() {
+    const session = storage.chat.ensureSession('doubao');
+    this._loadSession(session);
     this._loadUsage();
+  },
+
+  _loadSession(session) {
+    const messages = storage.chat.messages()
+      .filter(item => item.sessionUuid === session.sessionUuid)
+      .sort((a, b) => Number(a.createdAt) - Number(b.createdAt))
+      .map(item => ({ id: item.messageUuid, role: item.role, content: item.content, streaming: false }));
+    this._session = session;
+    this.setData({
+      messages,
+      sessionTitle: session.title || 'AI conversation',
+      anchor: messages.length ? messages[messages.length - 1].id : ''
+    });
+  },
+
+  onChooseSession() {
+    const sessions = storage.chat.sessions()
+      .slice()
+      .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt));
+    if (!sessions.length) return;
+    wx.showActionSheet({
+      itemList: sessions.map(item => item.title || 'AI conversation'),
+      success: result => this._loadSession(sessions[result.tapIndex])
+    });
   },
 
   async _loadUsage() {
@@ -58,8 +86,12 @@ Page({
       return;
     }
 
-    const userMsg = { id: Date.now() + '-u', role: 'user', content: text };
-    const aiId = Date.now() + '-a';
+    const session = this._session || storage.chat.ensureSession('doubao');
+    this._session = session;
+    const savedUser = storage.chat.addMessage({ sessionUuid: session.sessionUuid, role: 'user', content: text, provider: 'doubao' });
+    const savedAi = storage.chat.addMessage({ sessionUuid: session.sessionUuid, role: 'ai', content: '', provider: 'doubao' });
+    const userMsg = { id: savedUser.messageUuid, role: 'user', content: text };
+    const aiId = savedAi.messageUuid;
     const aiMsg = { id: aiId, role: 'ai', content: '思考中…', streaming: true };
 
     this.setData({
@@ -96,6 +128,8 @@ Page({
   },
 
   _updateAiMsg(id, content, streaming) {
+    storage.chat.updateMessage(id, { content });
+    if (!streaming) sync.pushNow();
     const messages = this.data.messages.map(m =>
       m.id === id ? { ...m, content, streaming } : m
     );

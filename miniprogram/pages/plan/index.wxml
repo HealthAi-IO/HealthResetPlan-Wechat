@@ -43,6 +43,10 @@
         <view class="plan-item meal-item" wx:if="{{plan.type === 'meal'}}">
         <view class="plan-header-row">
           <text class="plan-tag meal-tag">🍽 饮食计划</text>
+          <view class="plan-actions">
+            <text class="plan-action" data-id="{{plan.clientId || plan.id}}" bindtap="onEditPlan">编辑</text>
+            <text class="plan-action danger" data-id="{{plan.clientId || plan.id}}" bindtap="onDeletePlan">删除</text>
+          </view>
         </view>
         <view class="plan-summary">{{plan.summary}}</view>
         <view class="meals-detail" wx:if="{{plan.mealRows && plan.mealRows.length}}">
@@ -57,21 +61,31 @@
       <view class="plan-item ex-item" wx:if="{{plan.type === 'exercise'}}">
         <view class="plan-header-row">
           <text class="plan-tag ex-tag">🏃 运动计划</text>
-          <text class="plan-intensity muted">{{plan.payload.intensity}}</text>
+          <view class="plan-actions">
+            <text class="plan-intensity muted">{{plan.payload.intensity}}</text>
+            <text class="plan-action" data-id="{{plan.clientId || plan.id}}" bindtap="onEditPlan">编辑</text>
+            <text class="plan-action danger" data-id="{{plan.clientId || plan.id}}" bindtap="onDeletePlan">删除</text>
+          </view>
         </view>
         <view class="plan-summary">{{plan.summary}}</view>
         <view class="plan-desc muted" wx:if="{{plan.payload.desc}}">{{plan.payload.desc}}</view>
+        <view class="mea-item-row muted" wx:for="{{plan.payload.items}}" wx:for-item="detail" wx:key="*this">· {{detail}}</view>
       </view>
 
       <!-- 测量 -->
       <view class="plan-item mea-item" wx:if="{{plan.type === 'measurement'}}">
         <view class="plan-header-row">
           <text class="plan-tag mea-tag">📊 每日测量</text>
+          <view class="plan-actions">
+            <text class="plan-action" data-id="{{plan.clientId || plan.id}}" bindtap="onEditPlan">编辑</text>
+            <text class="plan-action danger" data-id="{{plan.clientId || plan.id}}" bindtap="onDeletePlan">删除</text>
+          </view>
         </view>
         <view class="plan-summary">{{plan.summary}}</view>
         <view wx:for="{{plan.measureItems}}" wx:for-item="it" wx:key="*this" class="mea-item-row muted">· {{it}}</view>
       </view>
       </block>
+      <button class="add-plan-btn" data-date="{{item.date}}" bindtap="onAddPlan">＋ 添加计划项</button>
     </block>
     <view class="day-preview muted" wx:else>点击展开查看当天饮食、运动和测量安排</view>
   </view>
@@ -132,6 +146,37 @@
       <button class="ai-primary {{!pendingAiPlan.executable ? 'disabled' : ''}}" bindtap="onApplyAiPlan" disabled="{{!pendingAiPlan.executable}}">
         {{pendingAiPlan.executable ? '应用方案' : '无法应用'}}
       </button>
+    </view>
+  </view>
+
+  <view class="editor-mask" wx:if="{{editor.show}}" bindtap="onEditorCancel"></view>
+  <view class="editor-panel" wx:if="{{editor.show}}">
+    <view class="editor-title">{{editor.editing ? '编辑计划项' : '添加计划项'}}</view>
+    <picker wx:if="{{!editor.editing}}" mode="selector" range="{{editorTypes}}" range-key="label"
+            value="{{editor.typeIndex}}" bindchange="onEditorTypeChange">
+      <view class="editor-picker">类型：{{editorTypes[editor.typeIndex].label}}</view>
+    </picker>
+    <input class="editor-input" value="{{editor.summary}}" data-field="summary"
+           bindinput="onEditorInput" maxlength="80" placeholder="计划概括" />
+
+    <block wx:if="{{editor.type === 'meal'}}">
+      <textarea class="editor-textarea" value="{{editor.breakfast}}" data-field="breakfast" bindinput="onEditorInput" placeholder="早餐，每行一项" />
+      <textarea class="editor-textarea" value="{{editor.lunch}}" data-field="lunch" bindinput="onEditorInput" placeholder="午餐，每行一项" />
+      <textarea class="editor-textarea" value="{{editor.dinner}}" data-field="dinner" bindinput="onEditorInput" placeholder="晚餐，每行一项" />
+      <textarea class="editor-textarea" value="{{editor.snack}}" data-field="snack" bindinput="onEditorInput" placeholder="加餐，每行一项" />
+    </block>
+    <block wx:elif="{{editor.type === 'exercise'}}">
+      <input class="editor-input" value="{{editor.exerciseType}}" data-field="exerciseType" bindinput="onEditorInput" placeholder="运动类型" />
+      <input class="editor-input" value="{{editor.duration}}" data-field="duration" bindinput="onEditorInput" type="number" placeholder="时长（分钟）" />
+      <input class="editor-input" value="{{editor.intensity}}" data-field="intensity" bindinput="onEditorInput" placeholder="运动强度" />
+      <textarea class="editor-textarea" value="{{editor.description}}" data-field="description" bindinput="onEditorInput" placeholder="运动说明" />
+    </block>
+    <textarea wx:else class="editor-textarea large" value="{{editor.items}}" data-field="items"
+              bindinput="onEditorInput" placeholder="测量或提醒项目，每行一项" />
+
+    <view class="editor-actions">
+      <button class="editor-cancel" bindtap="onEditorCancel">取消</button>
+      <button class="editor-save" bindtap="onEditorSave">保存</button>
     </view>
   </view>
 </scroll-view>

@@ -5,7 +5,23 @@ const K = {
   PLANS: 'hrp_plans',
   REMINDERS: 'hrp_reminders',
   REPORTS: 'hrp_reports',
+  AI_SESSIONS: 'hrp_ai_sessions',
+  AI_MESSAGES: 'hrp_ai_messages',
 };
+
+const SCOPE_KEY = 'hrp_active_data_scope';
+const SCOPE_MIGRATED_KEY = 'hrp_scoped_storage_migrated_v1';
+const GUEST_SCOPE = 'guest';
+const LEGACY_SCOPED_KEYS = [
+  ...Object.values(K),
+  'hrp_master_key_hex',
+  'hrp_sync_queue',
+  'hrp_sync_cursor',
+  'hrp_last_push_at',
+  'hrp_last_pull_at',
+  'hrp_last_key_fingerprint',
+];
+let activeScope = GUEST_SCOPE;
 
 const CLOCK_LABELS = {
   meal: '饮食打卡',
@@ -17,7 +33,7 @@ const CLOCK_LABELS = {
 
 function _get(key) {
   try {
-    return wx.getStorageSync(key) || [];
+    return wx.getStorageSync(scopedKey(key)) || [];
   } catch (e) {
     return [];
   }
@@ -25,7 +41,7 @@ function _get(key) {
 
 function _set(key, val) {
   try {
-    wx.setStorageSync(key, val);
+    wx.setStorageSync(scopedKey(key), val);
   } catch (e) {}
 }
 
@@ -36,14 +52,14 @@ function _today(isoStr) {
 const profile = {
   get() {
     try {
-      return wx.getStorageSync(K.PROFILE) || null;
+      return wx.getStorageSync(scopedKey(K.PROFILE)) || null;
     } catch (e) {
       return null;
     }
   },
   save(p) {
     try {
-      wx.setStorageSync(K.PROFILE, p);
+      wx.setStorageSync(scopedKey(K.PROFILE), p);
     } catch (e) {}
   },
 };
@@ -59,6 +75,9 @@ const indicators = {
     list.unshift(item);
     _set(K.INDICATORS, list.slice(0, 500));
     return item;
+  },
+  saveAll(list) {
+    _set(K.INDICATORS, Array.isArray(list) ? list.slice(0, 500) : []);
   },
   latestByType(type) {
     return this.getAll().find(i => i.type === type) || null;
@@ -106,6 +125,37 @@ const plans = {
   },
   saveAll(list) {
     _set(K.PLANS, list);
+  },
+  add(item) {
+    const now = new Date().toISOString();
+    const clientId = String(item.clientId || item.id || _uuid());
+    const next = {
+      ...item,
+      id: item.id || clientId,
+      clientId,
+      createdAt: item.createdAt || now,
+      updatedAt: now,
+    };
+    this.saveAll(this.getAll().concat(next));
+    return next;
+  },
+  update(id, patch) {
+    const target = String(id);
+    let updated = null;
+    const list = this.getAll().map(item => {
+      if (String(item.clientId || item.id) !== target) return item;
+      updated = { ...item, ...patch, updatedAt: new Date().toISOString() };
+      return updated;
+    });
+    this.saveAll(list);
+    return updated;
+  },
+  remove(id) {
+    const target = String(id);
+    const list = this.getAll();
+    const removed = list.find(item => String(item.clientId || item.id) === target) || null;
+    this.saveAll(list.filter(item => String(item.clientId || item.id) !== target));
+    return removed;
   },
   today() {
     return this.getAll().filter(p => _today(`${p.date}T00:00:00`));
@@ -198,7 +248,107 @@ const reports = {
   },
 };
 
-module.exports = { profile, indicators, clock, plans, reminders, reports };
+const chat = {
+  sessions() { return _get(K.AI_SESSIONS); },
+  messages() { return _get(K.AI_MESSAGES); },
+  saveSessions(items) { _set(K.AI_SESSIONS, Array.isArray(items) ? items : []); },
+  saveMessages(items) { _set(K.AI_MESSAGES, Array.isArray(items) ? items : []); },
+  ensureSession(provider) {
+    const sessions = this.sessions();
+    const existing = sessions.slice().sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))[0];
+    if (existing) return existing;
+    const now = Date.now();
+    const session = { sessionUuid: _uuid(), title: 'New conversation', provider: provider || 'doubao', createdAt: now, updatedAt: now };
+    this.saveSessions([session]);
+    return session;
+  },
+  addMessage(item) {
+    const now = Date.now();
+    const message = { ...item, messageUuid: item.messageUuid || _uuid(), createdAt: item.createdAt || now, updatedAt: now };
+    this.saveMessages(this.messages().concat(message));
+    this.touchSession(message.sessionUuid, message.role === 'user' ? message.content : '');
+    return message;
+  },
+  updateMessage(messageUuid, patch) {
+    const now = Date.now();
+    const messages = this.messages().map(item => item.messageUuid === messageUuid ? { ...item, ...patch, updatedAt: now } : item);
+    const message = messages.find(item => item.messageUuid === messageUuid);
+    this.saveMessages(messages);
+    if (message) this.touchSession(message.sessionUuid, '');
+    return message;
+  },
+  touchSession(sessionUuid, firstUserContent) {
+    const now = Date.now();
+    this.saveSessions(this.sessions().map(item => item.sessionUuid === sessionUuid ? {
+      ...item, updatedAt: now,
+      title: (item.title === 'New conversation' && firstUserContent) ? firstUserContent.slice(0, 24) : item.title
+    } : item));
+  },
+};
+
+function activateScope(userId) {
+  activeScope = _normalizeScope(userId);
+  try {
+    wx.setStorageSync(SCOPE_KEY, activeScope);
+    _migrateLegacyStorage();
+  } catch (e) {}
+  return activeScope;
+}
+
+function useGuestScope() {
+  return activateScope(GUEST_SCOPE);
+}
+
+function scopedKey(baseKey) {
+  return `${baseKey}::${activeScope}`;
+}
+
+function currentScope() {
+  return activeScope;
+}
+
+function clearCurrentData() {
+  Object.values(K).forEach(key => {
+    try {
+      wx.removeStorageSync(scopedKey(key));
+    } catch (e) {}
+  });
+}
+
+function _normalizeScope(value) {
+  const raw = String(value || '').trim();
+  return raw && raw !== GUEST_SCOPE ? `account-${raw}` : GUEST_SCOPE;
+}
+
+function _migrateLegacyStorage() {
+  if (wx.getStorageSync(SCOPE_MIGRATED_KEY)) return;
+  const info = wx.getStorageInfoSync();
+  const keys = Array.isArray(info.keys) ? info.keys : [];
+  LEGACY_SCOPED_KEYS.forEach(key => {
+    if (!keys.includes(key)) return;
+    const target = scopedKey(key);
+    if (!keys.includes(target)) {
+      wx.setStorageSync(target, wx.getStorageSync(key));
+    }
+    wx.removeStorageSync(key);
+  });
+  wx.setStorageSync(SCOPE_MIGRATED_KEY, true);
+}
+
+module.exports = {
+  profile,
+  indicators,
+  clock,
+  plans,
+  reminders,
+  reports,
+  chat,
+  activateScope,
+  useGuestScope,
+  scopedKey,
+  currentScope,
+  clearCurrentData,
+};
 
 function _normalizeReportTime(value) {
   if (!value) return new Date().toISOString();
@@ -207,4 +357,11 @@ function _normalizeReportTime(value) {
   if (Number.isFinite(n) && n > 1000000000) return new Date(n).toISOString();
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+}
+
+function _uuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const n = Math.floor(Math.random() * 16);
+    return (c === 'x' ? n : (n & 0x3) | 0x8).toString(16);
+  });
 }

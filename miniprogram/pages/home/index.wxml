@@ -27,7 +27,7 @@
   <view class="card setup-card" wx:if="{{needsSetup}}">
     <view class="setup-title">{{needsIndicators ? '还缺少健康指标' : '先填写你的健康档案'}}</view>
     <view class="setup-desc muted" wx:if="{{needsIndicators}}">档案已同步/已保存，还需要至少一条血压、体重、血糖或报告识别指标，才能用于分析和生成计划。</view>
-    <view class="setup-desc muted" wx:else>当前还没有完整档案。完善年龄、身高、体重和目标后，免费版和会员版会沿用同一份数据。</view>
+    <view class="setup-desc muted" wx:else>当前还没有完整档案。完善年龄、身高、体重和目标后，各端会沿用同一份数据。</view>
     <view class="setup-actions">
       <button class="setup-primary" wx:if="{{needsIndicators}}" bindtap="onGoIndicators">录入指标</button>
       <button class="setup-primary" wx:else bindtap="onGoProfile">完善档案</button>
@@ -186,7 +186,7 @@
       <view class="sync-badge">{{syncStatusText}}</view>
     </view>
     <view class="muted">
-      {{hasCloudSync ? '登录同一账号后，可用助记词恢复手机端数据' : '开通会员后可与手机端同步同一份加密健康数据'}}
+      {{hasCloudSync ? '登录同一账号后，可用助记词恢复手机端数据' : '登录手机号账号后可与手机端同步加密健康数据'}}
     </view>
   </view>
 

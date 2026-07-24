@@ -197,7 +197,7 @@ Page({
       success: r => {
         if (!r.confirm) return;
         const all = storage.indicators.getAll().filter(i => i.id !== id);
-        try { wx.setStorageSync('hrp_indicators', all); } catch (e) {}
+        storage.indicators.saveAll(all);
         try { sync.enqueueIndicatorDelete(id); } catch (e) {}
         this._loadGroups();
         wx.showToast({ title: '已删除', icon: 'success' });

@@ -30,10 +30,10 @@
     </view>
   </view>
 
-  <!-- 新增提醒 -->
+  <!-- 新增提醒清单 -->
   <view class="card">
-    <view class="card-title">订阅消息提醒</view>
-    <view class="card-sub muted">添加后会优先请求微信订阅消息授权，后续按提醒时间发送。</view>
+    <view class="card-title">提醒清单</view>
+    <view class="card-sub muted">用于记录和跨端同步提醒安排；小程序本版不会发送微信订阅消息。</view>
     <view class="mode-tip">{{reminderModeText}}</view>
     <view class="reminder-chips">
       <view class="reminder-chip" data-type="weight"   data-label="称重"   bindtap="onAddReminder">⚖️ 称重提醒</view>

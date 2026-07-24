@@ -1,5 +1,4 @@
 const APP_VERSION = '0.2.0';
-const REMINDER_SUBSCRIBE_TEMPLATES = [];
 
 const API_BASE_URLS = {
   develop: 'https://api.jkcqplan.com/api/v1',
@@ -35,7 +34,6 @@ function isPrivateDevUrl(url) {
 
 module.exports = {
   APP_VERSION,
-  REMINDER_SUBSCRIBE_TEMPLATES,
   API_BASE_URLS,
   getEnvVersion,
   getApiBaseUrl

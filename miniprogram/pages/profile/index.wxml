@@ -3,7 +3,7 @@
     <view>
       <view class="hero-kicker">个人健康档案</view>
       <view class="hero-title">{{form.nickname || '完善基础信息'}}</view>
-      <view class="hero-sub">用于生成饮食、运动、测量和会员 AI 方案</view>
+      <view class="hero-sub">用于生成饮食、运动、测量和 AI 方案</view>
     </view>
     <view class="hero-badge">
       <view class="hero-badge-value">{{completionText}}</view>

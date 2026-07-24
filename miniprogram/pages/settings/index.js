@@ -103,7 +103,7 @@ Page({
   onClearData() {
     wx.showModal({
       title: '清除本地数据',
-      content: '将清除所有本地指标、打卡记录和计划，不可恢复！',
+      content: '将清除当前身份的档案、指标、计划、报告、打卡和 AI 对话，不影响其他账号。',
       confirmText: '确认清除',
       confirmColor: '#E53935',
       success: r => {
@@ -111,12 +111,9 @@ Page({
           storage.reports.getAll().forEach(report => {
             if (report.imagePath) wx.removeSavedFile({ filePath: report.imagePath });
           });
-          const keys = [
-            'hrp_indicators', 'hrp_clock_records', 'hrp_plans', 'hrp_reminders',
-            'hrp_profile', 'hrp_reports', 'hrp_sync_queue', 'hrp_sync_cursor',
-            'hrp_last_push_at', 'hrp_last_pull_at'
-          ];
-          keys.forEach(k => { try { wx.removeStorageSync(k); } catch (e) {} });
+          storage.clearCurrentData();
+          sync.clearCurrentSyncState();
+          this._load();
           wx.showToast({ title: '本地数据已清除', icon: 'success' });
         }
       }

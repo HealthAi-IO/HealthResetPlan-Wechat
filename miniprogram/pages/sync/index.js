@@ -104,7 +104,8 @@ Page({
         backupConfirmed: true,
         restoreFocus: false,
       });
-      const result = await sync.pullNow({ resetCursor: true, replaceLocal: true });
+      await sync.pushNow();
+      const result = await sync.pullNow({ resetCursor: true });
       if (result.failed) {
         this.setData({
           resultMessage: `已恢复主密钥，但有 ${result.failed} 条云端数据无法解密，请确认助记词来自手机端最初同步时备份的那一组。`,

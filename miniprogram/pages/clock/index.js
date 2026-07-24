@@ -1,6 +1,5 @@
 const storage = require('../../utils/storage');
 const sync = require('../../utils/sync');
-const config = require('../../utils/config');
 
 const CLOCK_TYPES = [
   { type: 'meal',     icon: '🍚', label: '饮食', hint: '例如"低盐便当 + 蒸鱼"', color: '#FB8C00' },
@@ -24,7 +23,7 @@ Page({
     records: [],
     reminders: [],
     remindersExpanded: false,
-    reminderModeText: '优先使用小程序订阅消息提醒',
+    reminderModeText: '小程序仅保存提醒清单，本版不发送微信订阅消息',
     // 记录备注弹窗
     modal: { show: false, type: '', icon: '', label: '', hint: '', note: '', isMedicine: false, medStatus: 'done' },
     // 称重弹窗
@@ -53,7 +52,7 @@ Page({
     const displayReminders = reminders.map(r => ({
       ...r,
       timeLabel: `${String(r.hour).padStart(2,'0')}:${String(r.minute).padStart(2,'0')}`,
-      channelLabel: r.channel === 'wechat_subscribe' ? '订阅消息' : '本地提醒',
+      channelLabel: r.channel === 'in_app' ? '提醒清单' : '同步提醒',
     }));
 
     this.setData({
@@ -131,25 +130,20 @@ Page({
   },
 
   onReminderCancel()  { this.setData({ 'reminderModal.show': false }); },
-  async onReminderConfirm() {
+  onReminderConfirm() {
     const { type, label, note, hour, minute } = this.data.reminderModal;
-    const granted = await this._requestReminderSubscribe();
-    if (!granted) {
-      wx.showToast({ title: '你未同意订阅消息提醒', icon: 'none' });
-      return;
-    }
     storage.reminders.add({
       type,
       label: `${label}提醒`,
       note: note || `${label}提醒`,
       hour,
       minute,
-      channel: 'wechat_subscribe',
+      channel: 'in_app',
       status: 'pending',
     });
     this.setData({ 'reminderModal.show': false });
     this._load();
-    wx.showToast({ title: '订阅提醒已保存', icon: 'success' });
+    wx.showToast({ title: '提醒清单已保存', icon: 'success' });
   },
 
   onDeleteReminder(e) {
@@ -172,21 +166,6 @@ Page({
     this.setData({ remindersExpanded: !this.data.remindersExpanded });
   },
 
-  _requestReminderSubscribe() {
-    const tmplIds = config.REMINDER_SUBSCRIBE_TEMPLATES || [];
-    if (!tmplIds.length) return Promise.resolve(true);
-
-    return new Promise(resolve => {
-      wx.requestSubscribeMessage({
-        tmplIds,
-        success: res => {
-          const granted = tmplIds.some(id => res[id] === 'accept');
-          resolve(granted);
-        },
-        fail: () => resolve(false),
-      });
-    });
-  },
 });
 
 function _fmtTime(iso) {
