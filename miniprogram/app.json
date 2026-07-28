@@ -10,7 +10,6 @@
     "pages/indicators/index",
     "pages/login/index",
     "pages/chat/index",
-    "pages/sync/index",
     "pages/legal/index"
   ],
   "window": {

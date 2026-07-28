@@ -1,6 +1,5 @@
 const storage = require('../../utils/storage');
 const http = require('../../utils/http');
-const sync = require('../../utils/sync');
 
 const AI_DOCTOR_DISCLAIMER = 'AI 不能代替医生诊断，只提供健康管理建议；如有异常或症状加重，请及时就医。';
 
@@ -121,7 +120,6 @@ Page({
       const record = await this._buildReportRecord(this.data.image, data, result);
 
       storage.reports.add(record);
-      this._enqueueReport(record);
       this._loadHistory();
 
       if (!result.length) {
@@ -182,10 +180,7 @@ Page({
     Object.keys(grouped).forEach((type) => {
       const payload = grouped[type];
       if (this.data.reportSummary) payload.summary = this.data.reportSummary;
-      const entry = storage.indicators.add({ type, payload, measuredAt, source: 'report' });
-      try {
-        sync.enqueueIndicator(entry);
-      } catch (e) {}
+      storage.indicators.add({ type, payload, measuredAt, source: 'report' });
     });
 
     wx.showToast({ title: `已导入 ${selected.length} 项`, icon: 'success' });
@@ -201,12 +196,22 @@ Page({
     });
   },
 
-  onOpenHistory(e) {
+  async onOpenHistory(e) {
     const id = String(e.currentTarget.dataset.id || '');
     const record = storage.reports.getAll().find((item) => String(item.clientId || item.id) === id);
     if (!record) return;
 
     const detail = this._formatReportRecord(record);
+    if (detail.objectKey) {
+      try {
+        detail.imagePath = await http.download('/files/content', {
+          objectKey: detail.objectKey,
+          contentType: 'image/jpeg',
+        });
+      } catch (_) {
+        detail.imagePath = '';
+      }
+    }
     this.setData({
       activeReport: detail,
       detailVisible: true,
@@ -242,7 +247,7 @@ Page({
 
     wx.showModal({
       title: '删除报告',
-      content: '删除后最近报告中将不再显示，已开启云同步时会同步删除。',
+      content: '删除后账号中的报告记录与对应图片将不可恢复。',
       confirmText: '删除',
       confirmColor: '#E53935',
       success: (res) => {
@@ -250,19 +255,8 @@ Page({
 
         const record = storage.reports.getAll().find((item) => String(item.clientId || item.id) === id);
         storage.reports.remove(id);
-        try {
-          sync.enqueueItem({
-            table: 'health_report',
-            clientId: id,
-            version: Date.now(),
-            clientUpdatedAt: Date.now(),
-            deleted: true,
-            plain: { deleted: true },
-            meta: { deleted: true },
-          });
-        } catch (e) {}
         if (record && record.imagePath) {
-          this._removeSavedFile(record.imagePath);
+          http.del(`/files?objectKey=${encodeURIComponent(record.imagePath)}`).catch(() => {});
         }
         if (this.data.activeReport && String(this.data.activeReport.clientId) === id) {
           this.onCloseDetail();
@@ -287,6 +281,8 @@ Page({
     const indicators = Array.isArray(normalized.indicators) ? normalized.indicators : [];
     return {
       ...record,
+      objectKey: record.imagePath || '',
+      imagePath: '',
       clientId: String(record.clientId || record.id || ''),
       title: record.summary || normalized.summary || '检查报告',
       timeLabel: this._fmtTime(new Date(record.reportTime || record.createdAt || Date.now())),
@@ -352,7 +348,7 @@ Page({
     const now = new Date().toISOString();
     const reportTime = _normalizeReportTime(data.reportDate || now);
     const clientId = `report-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const savedImagePath = await this._persistImage(imagePath);
+    const savedImagePath = await this._uploadImage(imagePath, clientId);
     const structured = {
       reportDate: reportTime,
       indicators: Array.isArray(data.indicators) ? data.indicators : result.map((item) => ({
@@ -384,50 +380,10 @@ Page({
     };
   },
 
-  _enqueueReport(report) {
-    try {
-      sync.enqueueItem({
-        table: 'health_report',
-        clientId: report.clientId,
-        version: _toMs(report.updatedAt) || Date.now(),
-        clientUpdatedAt: _toMs(report.updatedAt) || Date.now(),
-        deleted: false,
-        plain: {
-          user_id: 'local-user',
-          client_id: report.clientId,
-          image_path: report.imagePath || '',
-          report_time: _toMs(report.reportTime) || Date.now(),
-          summary: report.summary || '',
-          raw_text: report.rawText || '',
-          structured_json: JSON.stringify(report.structured || {}),
-          provider: report.provider || '',
-          created_at: _toMs(report.createdAt) || Date.now(),
-          updated_at: _toMs(report.updatedAt) || Date.now(),
-          version: _toMs(report.updatedAt) || Date.now(),
-        },
-        meta: {
-          report_time: _toMs(report.reportTime) || Date.now(),
-          provider: report.provider || '',
-        },
-      });
-    } catch (e) {}
-  },
-
-  async _persistImage(filePath) {
+  async _uploadImage(filePath, clientId) {
     if (!filePath) return '';
-    try {
-      const saved = await wx.saveFile({ tempFilePath: filePath });
-      return saved.savedFilePath || filePath;
-    } catch (e) {
-      return filePath;
-    }
-  },
-
-  _removeSavedFile(filePath) {
-    try {
-      if (!filePath || filePath.indexOf('wxfile://') !== 0) return;
-      wx.removeSavedFile({ filePath });
-    } catch (e) {}
+    const uploaded = await http.upload('/files/upload', filePath, 'file', { clientId });
+    return uploaded.objectKey || '';
   },
 
   _fmtTime(date) {

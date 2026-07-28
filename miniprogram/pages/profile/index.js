@@ -1,6 +1,5 @@
 const http = require('../../utils/http');
 const storage = require('../../utils/storage');
-const sync = require('../../utils/sync');
 
 const GOAL_LIST     = ['减脂降重', '控糖', '控压', '降脂', '综合调理'];
 const ACTIVITY_LIST = ['久坐不动', '轻度活动', '中度活动', '高度活动'];
@@ -108,8 +107,7 @@ Page({
 
     // 同步写入体重指标
     if (prof.weightKg) {
-      const entry = storage.indicators.add({ type: 'weight', payload: { weightKg: prof.weightKg } });
-      try { sync.enqueueIndicator(entry); } catch (e) {}
+      storage.indicators.add({ type: 'weight', payload: { weightKg: prof.weightKg } });
     }
     this._syncAccountNickname(prof.nickname);
 

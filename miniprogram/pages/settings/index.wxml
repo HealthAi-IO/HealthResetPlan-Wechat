@@ -18,7 +18,7 @@
     <view class="login-avatar">👤</view>
     <view class="login-info">
       <view class="login-title">登录 / 注册账号</view>
-      <view class="login-sub muted">登录后可开启云同步、AI 计划生成等功能</view>
+      <view class="login-sub muted">登录后加载账号健康数据并使用 AI 功能</view>
     </view>
     <view class="arrow muted">›</view>
   </view>
@@ -51,16 +51,15 @@
     </view>
   </view>
 
-  <!-- 云同步 -->
+  <!-- 账号数据 -->
   <view class="section-card">
-    <view class="section-label">云同步</view>
-    <view class="cell" bindtap="onGoSync">
-      <view class="cell-icon">🔐</view>
+    <view class="section-label">账号数据</view>
+    <view class="cell">
+      <view class="cell-icon">☁️</view>
       <view class="cell-main">
-        <view class="cell-label">云同步与密钥</view>
-        <view class="cell-sub muted">{{syncStatusText}}</view>
+        <view class="cell-label">在线存储</view>
+        <view class="cell-sub muted">{{dataStatusText}}</view>
       </view>
-      <view class="cell-arrow muted">›</view>
     </view>
   </view>
 
@@ -78,13 +77,6 @@
       <view class="cell-label">用户协议</view>
       <view class="cell-arrow muted">›</view>
     </view>
-    <view class="cell-divider"></view>
-    <view class="cell" bindtap="onClearData">
-      <view class="cell-icon">🗑️</view>
-      <view class="cell-label cell-danger">清除本地数据</view>
-      <view class="cell-arrow muted">›</view>
-    </view>
-    <view class="cell-divider"></view>
     <view class="cell" bindtap="onFeedback">
       <view class="cell-icon">✉️</view>
       <view class="cell-label">联系我们</view>

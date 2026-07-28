@@ -1,6 +1,5 @@
 const http = require('../../utils/http');
 const storage = require('../../utils/storage');
-const sync = require('../../utils/sync');
 
 Page({
   data: {
@@ -68,7 +67,7 @@ Page({
 
     await this._afterAuthSync(form.nickname);
     wx.showToast({ title: '登录成功', icon: 'success' });
-    setTimeout(() => wx.navigateBack(), 600);
+    setTimeout(() => wx.switchTab({ url: '/pages/home/index' }), 600);
   },
 
   async _resetPassword() {
@@ -125,11 +124,9 @@ Page({
   },
 
   async _afterAuthSync(nickname) {
+    await storage.bindOnline();
     try {
       await this._syncAccountInfo(nickname);
-    } catch (e) {}
-    try {
-      await sync.pushLocalIndicatorsIfReady();
     } catch (e) {}
   },
 
@@ -143,7 +140,7 @@ Page({
       app.setAccountInfo({
         nickname: nickname || info.nickname,
         avatarUrl: info.avatarUrl || '',
-        hasCloudSync: !!info.hasCloudSync
+        hasCloudSync: true
       });
     } catch (e) {
       if (nickname) storage.profile.save({ ...localProfile, nickname });
@@ -156,6 +153,6 @@ Page({
   },
 
   onSkip() {
-    wx.navigateBack();
+    wx.showToast({ title: '请先登录账号', icon: 'none' });
   }
 });

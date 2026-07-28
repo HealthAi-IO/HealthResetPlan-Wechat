@@ -10,7 +10,7 @@
     <view class="profile-info">
       <view class="profile-name">{{nickname}}</view>
       <view class="profile-id muted" wx:if="{{isLoggedIn}}">已绑定账号</view>
-      <view class="profile-id muted" wx:else>本地模式</view>
+      <view class="profile-id muted" wx:else>请先登录</view>
     </view>
     <view class="profile-stats">
       <view class="stat-item">

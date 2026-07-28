@@ -8,19 +8,22 @@ const K = {
   AI_SESSIONS: 'hrp_ai_sessions',
   AI_MESSAGES: 'hrp_ai_messages',
 };
+const SERVER_TABLE = {
+  [K.PROFILE]: 'user_profile',
+  [K.INDICATORS]: 'health_indicator',
+  [K.CLOCK]: 'clock_record',
+  [K.PLANS]: 'plan',
+  [K.REMINDERS]: 'reminder',
+  [K.REPORTS]: 'health_report',
+  [K.AI_SESSIONS]: 'ai_session',
+  [K.AI_MESSAGES]: 'ai_message',
+};
+const memory = {};
+let onlineVersion = 0;
+let pendingWrite = Promise.resolve();
+let lastWriteError = null;
 
-const SCOPE_KEY = 'hrp_active_data_scope';
-const SCOPE_MIGRATED_KEY = 'hrp_scoped_storage_migrated_v1';
 const GUEST_SCOPE = 'guest';
-const LEGACY_SCOPED_KEYS = [
-  ...Object.values(K),
-  'hrp_master_key_hex',
-  'hrp_sync_queue',
-  'hrp_sync_cursor',
-  'hrp_last_push_at',
-  'hrp_last_pull_at',
-  'hrp_last_key_fingerprint',
-];
 let activeScope = GUEST_SCOPE;
 
 const CLOCK_LABELS = {
@@ -32,17 +35,13 @@ const CLOCK_LABELS = {
 };
 
 function _get(key) {
-  try {
-    return wx.getStorageSync(scopedKey(key)) || [];
-  } catch (e) {
-    return [];
-  }
+  const value = memory[key];
+  return Array.isArray(value) ? value : [];
 }
 
 function _set(key, val) {
-  try {
-    wx.setStorageSync(scopedKey(key), val);
-  } catch (e) {}
+  memory[key] = val;
+  _queueSave();
 }
 
 function _today(isoStr) {
@@ -51,16 +50,11 @@ function _today(isoStr) {
 
 const profile = {
   get() {
-    try {
-      return wx.getStorageSync(scopedKey(K.PROFILE)) || null;
-    } catch (e) {
-      return null;
-    }
+    return memory[K.PROFILE] || null;
   },
   save(p) {
-    try {
-      wx.setStorageSync(scopedKey(K.PROFILE), p);
-    } catch (e) {}
+    memory[K.PROFILE] = p;
+    _queueSave();
   },
 };
 
@@ -288,10 +282,6 @@ const chat = {
 
 function activateScope(userId) {
   activeScope = _normalizeScope(userId);
-  try {
-    wx.setStorageSync(SCOPE_KEY, activeScope);
-    _migrateLegacyStorage();
-  } catch (e) {}
   return activeScope;
 }
 
@@ -309,10 +299,9 @@ function currentScope() {
 
 function clearCurrentData() {
   Object.values(K).forEach(key => {
-    try {
-      wx.removeStorageSync(scopedKey(key));
-    } catch (e) {}
+    memory[key] = key === K.PROFILE ? null : [];
   });
+  _queueSave();
 }
 
 function _normalizeScope(value) {
@@ -320,19 +309,49 @@ function _normalizeScope(value) {
   return raw && raw !== GUEST_SCOPE ? `account-${raw}` : GUEST_SCOPE;
 }
 
-function _migrateLegacyStorage() {
-  if (wx.getStorageSync(SCOPE_MIGRATED_KEY)) return;
-  const info = wx.getStorageInfoSync();
-  const keys = Array.isArray(info.keys) ? info.keys : [];
-  LEGACY_SCOPED_KEYS.forEach(key => {
-    if (!keys.includes(key)) return;
-    const target = scopedKey(key);
-    if (!keys.includes(target)) {
-      wx.setStorageSync(target, wx.getStorageSync(key));
-    }
-    wx.removeStorageSync(key);
+async function bindOnline() {
+  const snapshot = await require('./http').get('/data');
+  onlineVersion = Number(snapshot.version || 0);
+  const data = snapshot.data || {};
+  Object.values(K).forEach(key => {
+    const value = data[SERVER_TABLE[key]];
+    memory[key] = key === K.PROFILE
+      ? (Array.isArray(value) ? value[0] || null : null)
+      : (Array.isArray(value) ? value : []);
   });
-  wx.setStorageSync(SCOPE_MIGRATED_KEY, true);
+  lastWriteError = null;
+}
+
+function unbindOnline() {
+  onlineVersion = 0;
+  lastWriteError = null;
+  Object.values(K).forEach(key => {
+    memory[key] = key === K.PROFILE ? null : [];
+  });
+}
+
+async function flush() {
+  await pendingWrite;
+  if (lastWriteError) throw lastWriteError;
+}
+
+function _queueSave() {
+  if (!getApp().isLoggedIn()) return;
+  pendingWrite = pendingWrite.then(async () => {
+    const data = {};
+    Object.values(K).forEach(key => {
+      data[SERVER_TABLE[key]] = key === K.PROFILE
+        ? (memory[key] ? [memory[key]] : [])
+        : (memory[key] || []);
+    });
+    const saved = await require('./http').put('/data', { version: onlineVersion, data });
+    onlineVersion = Number(saved.version || onlineVersion + 1);
+    lastWriteError = null;
+  }).catch(async err => {
+    lastWriteError = err;
+    try { await bindOnline(); } catch (e) {}
+    wx.showToast({ title: '网络不可用，数据未保存', icon: 'none' });
+  });
 }
 
 module.exports = {
@@ -348,6 +367,9 @@ module.exports = {
   scopedKey,
   currentScope,
   clearCurrentData,
+  bindOnline,
+  unbindOnline,
+  flush,
 };
 
 function _normalizeReportTime(value) {

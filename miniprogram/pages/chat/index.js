@@ -1,6 +1,5 @@
 const http = require('../../utils/http');
 const storage = require('../../utils/storage');
-const sync = require('../../utils/sync');
 
 const QUICK_QUESTIONS = [
   '我今天血压偏高，吃什么有帮助？',
@@ -129,7 +128,6 @@ Page({
 
   _updateAiMsg(id, content, streaming) {
     storage.chat.updateMessage(id, { content });
-    if (!streaming) sync.pushNow();
     const messages = this.data.messages.map(m =>
       m.id === id ? { ...m, content, streaming } : m
     );

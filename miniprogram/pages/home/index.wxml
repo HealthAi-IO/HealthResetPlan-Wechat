@@ -182,11 +182,11 @@
 
   <view class="card sync-card" bindtap="onGoSettings">
     <view class="sync-top">
-      <view class="title-md sync-title">云同步与换机恢复</view>
+      <view class="title-md sync-title">账号数据</view>
       <view class="sync-badge">{{syncStatusText}}</view>
     </view>
     <view class="muted">
-      {{hasCloudSync ? '登录同一账号后，可用助记词恢复手机端数据' : '登录手机号账号后可与手机端同步加密健康数据'}}
+      登录同一账号即可在其他设备继续使用，修改会自动保存到服务器
     </view>
   </view>
 

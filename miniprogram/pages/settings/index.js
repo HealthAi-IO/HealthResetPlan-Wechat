@@ -1,39 +1,41 @@
 const http = require('../../utils/http');
 const storage = require('../../utils/storage');
 const config = require('../../utils/config');
-const sync = require('../../utils/sync');
 
 Page({
   data: {
     isLoggedIn: false,
     nickname: '', avatarSrc: '',
     version: `v${config.APP_VERSION}`,
-    syncStatusText: '先登录后可使用',
+    dataStatusText: '修改会自动保存到服务器',
   },
 
   onShow() { this._load(); },
 
-  _load() {
+  async _load() {
     const app = getApp();
     const prof = storage.profile.get() || {};
     this.setData({
       isLoggedIn: app.isLoggedIn(),
       nickname:   prof.nickname || (app.globalData.userId ? '已登录用户' : ''),
-      avatarSrc:  this._avatarSrc(app),
-      syncStatusText: this._syncStatusText(),
+      avatarSrc: '',
+      dataStatusText: '修改会自动保存到服务器',
     });
+    const objectKey = this._avatarObjectKey(app.globalData.avatarUrl);
+    if (objectKey) {
+      try {
+        const avatarSrc = await http.download('/files/content', {
+          objectKey,
+          contentType: 'image/jpeg',
+        });
+        this.setData({ avatarSrc });
+      } catch (_) {}
+    }
   },
 
-  _syncStatusText() {
-    const s = sync.status();
-    if (!s.loggedIn) return '先登录后可使用';
-    if (!s.hasKey) return '待恢复手机端助记词';
-    return `已就绪 · 待同步 ${s.queueLen} 条`;
-  },
-
-  _avatarSrc(app) {
-    if (!app.globalData.userId || !app.globalData.avatarUrl) return '';
-    return `${app.globalData.baseUrl}/files/avatar/${app.globalData.userId}?v=${encodeURIComponent(app.globalData.avatarUrl)}`;
+  _avatarObjectKey(value) {
+    const match = String(value || '').match(/[?&]objectKey=([^&]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
   },
 
   onGoLogin()      { wx.navigateTo({ url: '/pages/login/index' }); },
@@ -41,7 +43,6 @@ Page({
   onGoReport()     { wx.navigateTo({ url: '/pages/report/index' }); },
   onGoIndicators() { wx.navigateTo({ url: '/pages/indicators/index' }); },
   onGoChat()       { wx.navigateTo({ url: '/pages/chat/index' }); },
-  onGoSync()       { wx.navigateTo({ url: '/pages/sync/index' }); },
   onGoPrivacy()    { wx.navigateTo({ url: '/pages/legal/index?type=privacy' }); },
   onGoTerms()      { wx.navigateTo({ url: '/pages/legal/index?type=terms' }); },
 
@@ -79,7 +80,7 @@ Page({
   onLogout() {
     wx.showModal({
       title: '退出登录',
-      content: '确定退出账号？本地数据不会删除。',
+      content: '退出后本机不保留健康业务数据，再次登录会从服务器加载。',
       confirmText: '退出',
       confirmColor: '#E53935',
       success: async r => {
@@ -95,26 +96,6 @@ Page({
             this._load();
             wx.showToast({ title: '已退出登录', icon: 'none' });
           }
-        }
-      }
-    });
-  },
-
-  onClearData() {
-    wx.showModal({
-      title: '清除本地数据',
-      content: '将清除当前身份的档案、指标、计划、报告、打卡和 AI 对话，不影响其他账号。',
-      confirmText: '确认清除',
-      confirmColor: '#E53935',
-      success: r => {
-        if (r.confirm) {
-          storage.reports.getAll().forEach(report => {
-            if (report.imagePath) wx.removeSavedFile({ filePath: report.imagePath });
-          });
-          storage.clearCurrentData();
-          sync.clearCurrentSyncState();
-          this._load();
-          wx.showToast({ title: '本地数据已清除', icon: 'success' });
         }
       }
     });

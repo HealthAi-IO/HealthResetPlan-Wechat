@@ -25,7 +25,7 @@ Page({
 
   onShow() { this._load(); },
 
-  _load() {
+  async _load() {
     const app = getApp();
     const prof = storage.profile.get();
     const allInds = storage.indicators.getAll();
@@ -90,13 +90,23 @@ Page({
 
     this.setData({
       groups,
-      nickname:   prof?.nickname || (app.isLoggedIn() ? '已登录用户' : '本地用户'),
-      avatarSrc:  this._avatarSrc(app),
+      nickname:   prof?.nickname || '已登录用户',
+      avatarSrc:  '',
       isLoggedIn: app.isLoggedIn(),
       totalIndicators: allInds.length,
       totalClocks:     allClocks.length,
       accountDays:     days,
     });
+    const objectKey = this._avatarObjectKey(app.globalData.avatarUrl);
+    if (objectKey) {
+      try {
+        const avatarSrc = await http.download('/files/content', {
+          objectKey,
+          contentType: 'image/jpeg',
+        });
+        this.setData({ avatarSrc });
+      } catch (_) {}
+    }
   },
 
   onToggleGroup(e) {
@@ -108,9 +118,9 @@ Page({
   onGoIndicators() { wx.navigateTo({ url: '/pages/indicators/index' }); },
   onChartArea() {}, // 阻止点击图表区折叠卡片（catchtap 用）
 
-  _avatarSrc(app) {
-    if (!app.globalData.userId || !app.globalData.avatarUrl) return '';
-    return `${app.globalData.baseUrl}/files/avatar/${app.globalData.userId}?v=${encodeURIComponent(app.globalData.avatarUrl)}`;
+  _avatarObjectKey(value) {
+    const match = String(value || '').match(/[?&]objectKey=([^&]+)/);
+    return match ? decodeURIComponent(match[1]) : '';
   },
 
   onChooseAvatar() {

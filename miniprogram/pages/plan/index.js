@@ -1,7 +1,6 @@
 const storage = require('../../utils/storage');
 const planUtil = require('../../utils/plan');
 const http = require('../../utils/http');
-const sync = require('../../utils/sync');
 
 const EDITOR_TYPES = [
   { value: 'meal', label: '饮食' },
@@ -109,25 +108,12 @@ Page({
     const id = String(e.currentTarget.dataset.id);
     wx.showModal({
       title: '删除计划项',
-      content: '删除后会同步到其他设备，确定继续吗？',
+      content: '删除后账号中的该计划项将不可恢复，确定继续吗？',
       confirmText: '删除',
       confirmColor: '#E53935',
       success: result => {
         if (!result.confirm) return;
-        const removed = storage.plans.remove(id);
-        if (removed) {
-          const clientId = String(removed.clientId || removed.id);
-          const now = Date.now();
-          sync.enqueueItem({
-            table: 'plan',
-            clientId,
-            version: now,
-            clientUpdatedAt: now,
-            deleted: true,
-            plain: { deleted: true },
-            meta: { deleted: true },
-          });
-        }
+        storage.plans.remove(id);
         this._load();
       }
     });

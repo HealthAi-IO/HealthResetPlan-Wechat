@@ -1,5 +1,4 @@
 const storage = require('../../utils/storage');
-const sync    = require('../../utils/sync');
 
 const TYPE_LIST = [
   { value: 'weight',     label: '体重', icon: '⚖️' },
@@ -139,13 +138,11 @@ Page({
     const payload = this._buildPayload();
     if (!this._validate(payload)) return;
 
-    const entry = storage.indicators.add({
+    storage.indicators.add({
       type: this.data.type,
       payload,
       measuredAt: this.data.measuredAt
     });
-    // 端到端加密同步：入队（push 由用户在"我的→云同步"主动触发或后续做自动化）
-    try { sync.enqueueIndicator(entry); } catch (e) {}
     wx.showToast({ title: '已保存', icon: 'success' });
 
     // 清空当前类型的数值，方便继续录入
@@ -198,7 +195,6 @@ Page({
         if (!r.confirm) return;
         const all = storage.indicators.getAll().filter(i => i.id !== id);
         storage.indicators.saveAll(all);
-        try { sync.enqueueIndicatorDelete(id); } catch (e) {}
         this._loadGroups();
         wx.showToast({ title: '已删除', icon: 'success' });
       }

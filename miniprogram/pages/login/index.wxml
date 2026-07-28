@@ -2,7 +2,7 @@
   <view class="brand">
     <image class="brand-logo" src="/assets/app-icon.png" mode="aspectFill" />
     <view class="brand-name">健康重启计划</view>
-    <view class="brand-sub muted">端到端加密 · 数据归您所有</view>
+    <view class="brand-sub muted">账号数据自动保存 · 随时继续使用</view>
   </view>
 
   <view class="tabs">
@@ -76,9 +76,9 @@
   <view class="skip-row" bindtap="onSkip">跳过，仅本地使用 →</view>
 
   <view class="tip-card">
-    <view class="tip-title">关于云同步</view>
+    <view class="tip-title">关于账号数据</view>
     <view class="tip-body muted">
-      登录后可开启端到端加密云同步。客户端加密后上传，服务端无法读取明文。
+      登录后健康数据会自动保存到服务器，敏感数据由服务器使用专用密钥加密存储。
     </view>
   </view>
 </view>

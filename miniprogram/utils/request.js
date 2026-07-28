@@ -152,6 +152,37 @@ function uploadTo(baseUrl, path, filePath, name, formData, retried = false) {
   });
 }
 
+function downloadFrom(baseUrl, path, data = {}, retried = false) {
+  const query = Object.keys(data)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(data[key])}`)
+    .join('&');
+  return new Promise((resolve, reject) => {
+    wx.downloadFile({
+      url: `${baseUrl}${path}${query ? `?${query}` : ''}`,
+      header: {
+        Authorization: app.globalData.accessToken ? `Bearer ${app.globalData.accessToken}` : '',
+        'X-Platform': 'wechat',
+        'X-App-Version': app.globalData.appVersion || '0.2.0'
+      },
+      success: res => {
+        if (res.statusCode === 200 && res.tempFilePath) {
+          resolve(res.tempFilePath);
+          return;
+        }
+        if (isAuthExpired(res) && !retried && app.globalData.refreshToken) {
+          refreshAccessToken()
+            .then(() => downloadFrom(baseUrl, path, data, true))
+            .then(resolve, reject);
+          return;
+        }
+        if (isAuthExpired(res)) handleAuthExpired();
+        reject(normalizeError(res, `下载失败(${res.statusCode})`));
+      },
+      fail: err => reject(normalizeFail(err))
+    });
+  });
+}
+
 function refreshAccessToken() {
   if (refreshingToken) return refreshingToken;
   refreshingToken = new Promise((resolve, reject) => {
@@ -188,7 +219,8 @@ module.exports = {
   del: (path, data, headers) => request('DELETE', path, data, headers),
   upload(path, filePath, name = 'file', formData = {}) {
     return uploadTo(app.globalData.baseUrl, path, filePath, name, formData);
-  }
+  },
+  download: (path, data) => downloadFrom(app.globalData.baseUrl, path, data)
 };
 
 function requestTimeout(path) {

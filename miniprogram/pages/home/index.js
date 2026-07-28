@@ -1,6 +1,5 @@
 const storage = require('../../utils/storage');
 const planUtil = require('../../utils/plan');
-const sync = require('../../utils/sync');
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const TYPE_LABELS = {
@@ -25,10 +24,10 @@ Page({
     mealSummaryExpanded: false, exerciseSummaryExpanded: false,
     hasLongMealSummary: false, hasLongExerciseSummary: false,
     recentIndicators: [], todayClocks: [],
-    hasProfile: false, hasCloudSync: false,
+    hasProfile: false,
     needsSetup: false,
     needsIndicators: false,
-    syncStatusText: '去设置',
+    dataStatusText: '修改自动保存',
   },
 
   onShow() { this._load(); },
@@ -36,7 +35,6 @@ Page({
   onRefresh() { this._load(); },
 
   _load() {
-    const app = getApp();
     const prof = storage.profile.get();
     const todayClocks = storage.clock.today();
     const todayPlans = storage.plans.today();
@@ -89,9 +87,6 @@ Page({
     }));
 
     const now = new Date();
-    const syncStatus = sync.status();
-    const syncStatusText = !syncStatus.loggedIn ? '先登录'
-      : (!syncStatus.hasKey ? '待恢复密钥' : '可同步');
     this.setData({
       nickname:    prof?.nickname || '朋友',
       todayLabel:  `${now.getMonth() + 1}月${now.getDate()}日 周${WEEKDAYS[now.getDay()]}`,
@@ -109,8 +104,7 @@ Page({
       hasProfile,
       needsSetup: !hasProfile || needsIndicators,
       needsIndicators,
-      hasCloudSync: !!app.globalData.hasCloudSync,
-      syncStatusText,
+      dataStatusText: '修改自动保存',
     });
   },
 
